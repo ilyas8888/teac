@@ -19,5 +19,6 @@ jobs:
         run: |
           git config --global user.email "ci@github.com"
           git config --global user.name "GitHub Actions"
+          HF_USER="${HF_SPACE%%/*}"
           git subtree push --prefix=server \
-            https://ilyas:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE} main
+            https://${HF_USER}:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE} main
