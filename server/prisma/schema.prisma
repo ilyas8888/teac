@@ -1,0 +1,186 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  nom          String
+  prenom       String
+  email        String   @unique
+  passwordHash String
+  ecole        String?
+  matieres     String[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  classes      Class[]
+  courses      Course[]
+  observations Observation[]
+  messagesSent Message[]     @relation("SentMessages")
+  messagesReceived Message[] @relation("ReceivedMessages")
+  events       Event[]
+}
+
+model Class {
+  id        String   @id @default(uuid())
+  nom       String
+  niveau    String
+  annee     String
+  teacherId String
+  teacher   User     @relation(fields: [teacherId], references: [id])
+  createdAt DateTime @default(now())
+
+  students  Student[]
+  sessions  Session[]
+}
+
+model Student {
+  id           String   @id @default(uuid())
+  nom          String
+  prenom       String
+  emailParent  String?
+  dateNaissance DateTime?
+  classId      String
+  class        Class    @relation(fields: [classId], references: [id])
+  createdAt    DateTime @default(now())
+
+  grades       Grade[]
+  absences     Absence[]
+  observations Observation[]
+}
+
+model Course {
+  id          String   @id @default(uuid())
+  nom         String
+  matiere     String
+  description String?
+  teacherId   String
+  teacher     User     @relation(fields: [teacherId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sessions    Session[]
+  evaluations Evaluation[]
+}
+
+model Session {
+  id          String   @id @default(uuid())
+  titre       String
+  objectifs   String
+  contenu     String?
+  duree       Int
+  date        DateTime
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id])
+  classId     String
+  class       Class    @relation(fields: [classId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  resources   Resource[]
+  absences    Absence[]
+}
+
+model Resource {
+  id        String       @id @default(uuid())
+  titre     String
+  type      ResourceType
+  url       String?
+  fichier   String?
+  sessionId String
+  session   Session      @relation(fields: [sessionId], references: [id])
+  createdAt DateTime     @default(now())
+}
+
+enum ResourceType {
+  PDF
+  LIEN
+  IMAGE
+  VIDEO
+  AUTRE
+}
+
+model Evaluation {
+  id        String   @id @default(uuid())
+  titre     String
+  bareme    Float
+  date      DateTime
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id])
+  createdAt DateTime @default(now())
+
+  grades    Grade[]
+}
+
+model Grade {
+  id           String     @id @default(uuid())
+  note         Float
+  commentaire  String?
+  studentId    String
+  student      Student    @relation(fields: [studentId], references: [id])
+  evaluationId String
+  evaluation   Evaluation @relation(fields: [evaluationId], references: [id])
+  createdAt    DateTime   @default(now())
+
+  @@unique([studentId, evaluationId])
+}
+
+model Absence {
+  id         String   @id @default(uuid())
+  date       DateTime
+  justifiee  Boolean  @default(false)
+  motif      String?
+  studentId  String
+  student    Student  @relation(fields: [studentId], references: [id])
+  sessionId  String?
+  session    Session? @relation(fields: [sessionId], references: [id])
+  createdAt  DateTime @default(now())
+}
+
+model Observation {
+  id        String   @id @default(uuid())
+  contenu   String
+  date      DateTime @default(now())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id])
+  teacherId String
+  teacher   User     @relation(fields: [teacherId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  sujet      String
+  corps      String
+  lu         Boolean  @default(false)
+  senderId   String
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId String
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  createdAt  DateTime @default(now())
+}
+
+model Event {
+  id          String    @id @default(uuid())
+  titre       String
+  type        EventType
+  debut       DateTime
+  fin         DateTime
+  description String?
+  teacherId   String
+  teacher     User      @relation(fields: [teacherId], references: [id])
+  createdAt   DateTime  @default(now())
+}
+
+enum EventType {
+  SEANCE
+  REUNION
+  ECHEANCE
+  PERSONNEL
+}

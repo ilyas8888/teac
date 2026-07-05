@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: teac
+      POSTGRES_USER: teac_user
+      POSTGRES_PASSWORD: teac_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  server:
+    build: ./server
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://teac_user:teac_password@db:5432/teac
+      JWT_SECRET: dev-secret-change-in-production
+      CLIENT_URL: http://localhost:5173
+      PORT: 3001
+    depends_on:
+      - db
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+
+volumes:
+  postgres_data:

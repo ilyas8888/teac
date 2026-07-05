@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, -apple-system, sans-serif; }
+
+.prose h1, .prose h2, .prose h3 { font-weight: 600; margin-top: 1rem; margin-bottom: 0.5rem; }
+.prose ul, .prose ol { padding-left: 1.5rem; }
+.prose p { margin-bottom: 0.75rem; }
+.prose code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 0.85em; }
+.prose pre { background: #1e293b; color: #e2e8f0; padding: 1rem; border-radius: 8px; overflow-x: auto; }
