@@ -12,13 +12,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Push to HuggingFace Space
+      - name: Deploy to HuggingFace Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           HF_SPACE: ${{ secrets.HF_SPACE_NAME }}
         run: |
+          HF_USER="${HF_SPACE%%/*}"
           git config --global user.email "ci@github.com"
           git config --global user.name "GitHub Actions"
-          HF_USER="${HF_SPACE%%/*}"
-          git subtree push --prefix=server \
-            https://${HF_USER}:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE} main
+
+          git clone https://${HF_USER}:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE} hf_space
+
+          rsync -av --delete \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='dist' \
+            server/ hf_space/
+
+          cd hf_space
+          git add .
+          git diff --staged --quiet && echo "Nothing to deploy" && exit 0
+          git commit -m "Deploy from GitHub Actions $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          git push
