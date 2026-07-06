@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Users, Trash2, AlertCircle } from 'lucide-react';
+import { Plus, Users, Trash2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import api from '../services/api';
 import type { Student, Class } from '../types';
+
+const PAGE_SIZE = 10;
 
 export default function StudentsPage() {
   const qc = useQueryClient();
   const [selectedClass, setSelectedClass] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ nom: '', prenom: '', email: '', classId: '' });
+  const [page, setPage] = useState(1);
 
   const { data: classes = [] } = useQuery<Class[]>({
     queryKey: ['classes'],
@@ -19,6 +22,12 @@ export default function StudentsPage() {
     queryKey: ['students', selectedClass],
     queryFn: () => api.get('/students', { params: { classId: selectedClass || undefined } }).then((r) => r.data),
   });
+
+  const totalPages = Math.max(1, Math.ceil(students.length / PAGE_SIZE));
+  const paginated = useMemo(
+    () => students.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [students, page],
+  );
 
   const create = useMutation({
     mutationFn: (data: typeof form) => api.post('/students', data),
@@ -44,7 +53,7 @@ export default function StudentsPage() {
       </div>
 
       <div className="mb-6">
-        <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)}
+        <select value={selectedClass} onChange={(e) => { setSelectedClass(e.target.value); setPage(1); }}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
           <option value="">Toutes les classes</option>
           {classes.map((c) => <option key={c.id} value={c.id}>{c.nom}{c.groupe ? ` — ${c.groupe}` : ''} ({c.niveau})</option>)}
@@ -112,7 +121,7 @@ export default function StudentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {students.map((s) => (
+              {paginated.map((s) => (
                 <tr key={s.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="font-medium text-gray-900">{s.prenom} {s.nom}</div>
@@ -139,6 +148,40 @@ export default function StudentsPage() {
               ))}
             </tbody>
           </table>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200 bg-gray-50">
+              <span className="text-sm text-gray-500">
+                {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, students.length)} sur {students.length}
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage((p) => p - 1)}
+                  disabled={page === 1}
+                  className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p)}
+                    className={`w-7 h-7 rounded-lg text-sm font-medium transition-colors ${
+                      p === page ? 'bg-indigo-900 text-white' : 'text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={page === totalPages}
+                  className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
