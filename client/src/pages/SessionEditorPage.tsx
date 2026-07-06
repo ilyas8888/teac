@@ -2,11 +2,11 @@ import { useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { ArrowLeft, Clock, Users, Calendar, Check, Loader2, Target } from 'lucide-react';
-import type { Block, PartialBlock } from '@blocknote/core';
 import api from '../services/api';
 import type { Session } from '../types';
 import SessionEditor from '../components/SessionEditor';
 import { formatSessionDate, formatDuration, sessionStatus, STATUS_META } from '../lib/sessionUtils';
+import type { TeacBlock, TeacPartialBlock } from '../lib/blocknoteSchema';
 
 type SaveState = 'idle' | 'saving' | 'saved';
 
@@ -24,7 +24,7 @@ export default function SessionEditorPage() {
   });
 
   const save = useMutation({
-    mutationFn: (content: Block[]) => api.put(`/sessions/${sessionId}`, { content }),
+    mutationFn: (content: TeacBlock[]) => api.put(`/sessions/${sessionId}`, { content }),
     onMutate: () => setSaveState('saving'),
     onSuccess: () => {
       setSaveState('saved');
@@ -32,7 +32,7 @@ export default function SessionEditorPage() {
     },
   });
 
-  const handleChange = useCallback((blocks: Block[]) => {
+  const handleChange = useCallback((blocks: TeacBlock[]) => {
     setSaveState('saving');
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => save.mutate(blocks), 1200);
@@ -92,12 +92,12 @@ export default function SessionEditorPage() {
         {/* Rich content editor */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm py-6">
           <SessionEditor
-            initialContent={(Array.isArray(session.content) ? session.content : undefined) as PartialBlock[] | undefined}
+            initialContent={(Array.isArray(session.content) ? session.content : undefined) as TeacPartialBlock[] | undefined}
             onChange={handleChange}
           />
         </div>
         <p className="text-xs text-gray-400 mt-3 text-center">
-          Tapez « / » pour insérer un bloc (titre, liste, code…). Les blocs média arrivent en Phase 2.
+          Tapez « / » pour insérer un bloc : titre, liste, code, image, vidéo, diagramme Mermaid… ou glissez un fichier.
         </p>
       </div>
     </div>
