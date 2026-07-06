@@ -228,8 +228,8 @@ export default function ClassesPage() {
             {/* Tabs */}
             <div className="flex border-b border-gray-100 px-6">
               {([
-                { id: 'table', label: 'Saisie manuelle', icon: Rows3 },
-                { id: 'excel', label: 'Fichier Excel', icon: Upload },
+                { id: 'table', label: 'Saisie manuelle', icon: Rows3, soon: false },
+                { id: 'excel', label: 'Fichier Excel', icon: Upload, soon: false },
                 { id: 'scan', label: 'Scanner', icon: ScanLine, soon: true },
               ] as const).map(({ id, label, icon: Icon, soon }) => (
                 <button key={id} onClick={() => { if (!soon) { setTab(id); setImportMsg(''); } }}

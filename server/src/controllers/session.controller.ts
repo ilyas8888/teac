@@ -60,6 +60,13 @@ export const updateSession = async (req: AuthRequest, res: Response): Promise<vo
 };
 
 export const deleteSession = async (req: AuthRequest, res: Response): Promise<void> => {
-  await prisma.session.delete({ where: { id: req.params.id } });
+  const teacherId = req.userId as string;
+  const sessionId = req.params.id;
+  const session = await prisma.session.findFirst({ where: { id: sessionId, course: { teacherId } } });
+  if (!session) { res.status(404).json({ message: 'Séance non trouvée' }); return; }
+  // Cascade: remove resources, detach absences (keep attendance records)
+  await prisma.resource.deleteMany({ where: { sessionId } });
+  await prisma.absence.updateMany({ where: { sessionId }, data: { sessionId: null } });
+  await prisma.session.delete({ where: { id: sessionId } });
   res.json({ message: 'Séance supprimée' });
 };

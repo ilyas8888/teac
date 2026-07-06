@@ -47,6 +47,26 @@ export const updateCourse = async (req: AuthRequest, res: Response): Promise<voi
 
 export const deleteCourse = async (req: AuthRequest, res: Response): Promise<void> => {
   const teacherId = req.userId as string;
-  await prisma.course.deleteMany({ where: { id: req.params.id, teacherId } });
+  const courseId = req.params.id;
+  const course = await prisma.course.findFirst({ where: { id: courseId, teacherId } });
+  if (!course) { res.status(404).json({ message: 'Cours non trouvé' }); return; }
+
+  // Cascade through sessions (resources + absences) and evaluations (grades)
+  const sessions = await prisma.session.findMany({ where: { courseId }, select: { id: true } });
+  const sessionIds = sessions.map((s) => s.id);
+  if (sessionIds.length) {
+    await prisma.resource.deleteMany({ where: { sessionId: { in: sessionIds } } });
+    await prisma.absence.updateMany({ where: { sessionId: { in: sessionIds } }, data: { sessionId: null } });
+    await prisma.session.deleteMany({ where: { courseId } });
+  }
+
+  const evaluations = await prisma.evaluation.findMany({ where: { courseId }, select: { id: true } });
+  const evaluationIds = evaluations.map((e) => e.id);
+  if (evaluationIds.length) {
+    await prisma.grade.deleteMany({ where: { evaluationId: { in: evaluationIds } } });
+    await prisma.evaluation.deleteMany({ where: { courseId } });
+  }
+
+  await prisma.course.delete({ where: { id: courseId } });
   res.json({ message: 'Cours supprimé' });
 };

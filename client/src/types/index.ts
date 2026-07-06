@@ -53,9 +53,10 @@ export interface Session {
   date: string;
   courseId: string;
   classId: string;
-  course?: { nom: string };
-  class?: { nom: string };
+  course?: { nom: string; matiere?: string };
+  class?: { nom: string; groupe?: string };
   resources?: Resource[];
+  _count?: { resources: number };
 }
 
 export interface Resource {

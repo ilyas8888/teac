@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import CoursesPage from './pages/CoursesPage';
+import CourseDetailPage from './pages/CourseDetailPage';
 import StudentsPage from './pages/StudentsPage';
 import EvaluationsPage from './pages/EvaluationsPage';
 import AIAssistantPage from './pages/AIAssistantPage';
@@ -37,6 +38,7 @@ function AppRoutes() {
         <Route index element={<DashboardPage />} />
         <Route path="classes" element={<ClassesPage />} />
         <Route path="courses" element={<CoursesPage />} />
+        <Route path="courses/:id" element={<CourseDetailPage />} />
         <Route path="students" element={<StudentsPage />} />
         <Route path="evaluations" element={<EvaluationsPage />} />
         <Route path="ai-assistant" element={<AIAssistantPage />} />

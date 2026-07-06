@@ -6,3 +6,9 @@ dist/
 .DS_Store
 Thumbs.db
 uploads/
+
+# Local test artifacts
+.venv-openpyxl/
+Teac-files/
+students_test.xlsx
+*.xlsx
