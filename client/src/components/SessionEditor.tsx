@@ -3,6 +3,7 @@ import { BlockNoteView } from '@blocknote/mantine';
 import type { Block, PartialBlock } from '@blocknote/core';
 import '@blocknote/core/fonts/inter.css';
 import '@blocknote/mantine/style.css';
+import { uploadToCloudinary } from '../lib/cloudinary';
 
 interface SessionEditorProps {
   initialContent?: PartialBlock[];
@@ -18,6 +19,8 @@ export default function SessionEditor({ initialContent, editable = true, onChang
   const editor = useCreateBlockNote({
     // BlockNote requires at least one block; undefined => a single empty paragraph
     initialContent: initialContent && initialContent.length > 0 ? initialContent : undefined,
+    // Direct signed upload to Cloudinary — enables image/video/file blocks
+    uploadFile: editable ? uploadToCloudinary : undefined,
   });
 
   return (
