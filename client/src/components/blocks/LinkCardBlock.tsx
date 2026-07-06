@@ -1,7 +1,17 @@
 import { useState, type FormEvent } from 'react';
-import { Link2 } from 'lucide-react';
+import { ExternalLink, Link2 } from 'lucide-react';
 import { createReactBlockSpec } from '@blocknote/react';
 import api from '../../services/api';
+import { detectEmbed, type EmbedAspect } from '../../lib/embed';
+
+type LinkCardMode = 'auto' | 'embed' | 'card' | 'compact';
+
+const linkCardModes: { value: LinkCardMode; label: string }[] = [
+  { value: 'auto', label: 'Auto' },
+  { value: 'embed', label: 'Intégré' },
+  { value: 'card', label: 'Carte' },
+  { value: 'compact', label: 'Compact' },
+];
 
 function getHostname(url: string) {
   try {
@@ -9,6 +19,12 @@ function getHostname(url: string) {
   } catch {
     return url;
   }
+}
+
+function getEmbedContainerClass(aspect: EmbedAspect) {
+  if (aspect === 'video') return 'aspect-video';
+  if (aspect === 'wide') return 'h-[450px]';
+  return 'h-[500px]';
 }
 
 export const LinkCardBlock = createReactBlockSpec(
@@ -33,6 +49,9 @@ export const LinkCardBlock = createReactBlockSpec(
       favicon: {
         default: '',
       },
+      mode: {
+        default: 'auto',
+      },
     },
     content: 'none',
   },
@@ -45,6 +64,11 @@ export const LinkCardBlock = createReactBlockSpec(
       const isEditable = editor.isEditable;
       const hasUrl = Boolean(block.props.url);
       const domain = hasUrl ? getHostname(block.props.url) : '';
+      const mode = linkCardModes.some((item) => item.value === block.props.mode)
+        ? (block.props.mode as LinkCardMode)
+        : 'auto';
+      const embed = hasUrl ? detectEmbed(block.props.url) : null;
+      const shouldRenderEmbed = mode === 'embed' || (mode === 'auto' && embed);
 
       const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -68,6 +92,7 @@ export const LinkCardBlock = createReactBlockSpec(
               image: data.image,
               siteName: data.siteName,
               favicon: data.favicon,
+              mode,
             },
           });
         } catch {
@@ -125,6 +150,7 @@ export const LinkCardBlock = createReactBlockSpec(
                     image: '',
                     siteName: '',
                     favicon: '',
+                    mode,
                   },
                 });
               }}
@@ -133,53 +159,114 @@ export const LinkCardBlock = createReactBlockSpec(
             </button>
           )}
 
-          <a
-            className="flex overflow-hidden rounded-xl transition hover:shadow"
-            href={block.props.url}
-            target="_blank"
-            rel="noreferrer"
-            contentEditable={false}
-          >
-            <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden bg-gray-50 sm:h-32 sm:w-40">
-              {block.props.image && !imgError ? (
-                <img
-                  className="h-full w-full object-cover"
-                  src={block.props.image}
-                  alt=""
-                  onError={() => setImgError(true)}
-                />
-              ) : block.props.favicon ? (
-                <img
-                  className="h-10 w-10 rounded-lg"
-                  src={block.props.favicon}
-                  alt=""
-                />
-              ) : (
-                <Link2 className="text-gray-300" size={32} />
-              )}
+          {isEditable && (
+            <div className="flex gap-1 border-b border-gray-100 p-2 pr-10" contentEditable={false}>
+              {linkCardModes.map((item) => (
+                <button
+                  key={item.value}
+                  className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                    mode === item.value
+                      ? 'bg-indigo-600 text-white'
+                      : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
+                  }`}
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    editor.updateBlock(block, {
+                      props: { mode: item.value },
+                    });
+                  }}
+                >
+                  {item.label}
+                </button>
+              ))}
             </div>
+          )}
 
-            <div className="flex min-w-0 flex-1 flex-col gap-2 p-4 pr-10">
-              <div className="line-clamp-2 font-medium text-gray-900">
-                {block.props.title || domain}
-              </div>
-              {block.props.description && (
-                <div className="line-clamp-2 text-sm text-gray-500">
-                  {block.props.description}
+          {shouldRenderEmbed ? (
+            <div className="overflow-hidden rounded-b-xl" contentEditable={false}>
+              {mode === 'embed' && !embed && (
+                <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+                  Certains sites bloquent l'intégration. localhost ne fonctionne que sur votre machine, et une page HTTPS ne peut pas intégrer un lien HTTP. Sinon, utilisez le mode Carte.
                 </div>
               )}
-              <div className="mt-auto flex min-w-0 items-center gap-2 text-xs text-gray-400">
-                {block.props.favicon && (
+              <div className={embed ? getEmbedContainerClass(embed.aspect) : 'h-[500px]'}>
+                <iframe
+                  className="h-full w-full border-0"
+                  src={embed?.embedUrl || block.props.url}
+                  title={block.props.title || embed?.provider || domain || 'Embed'}
+                  sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
+                  allow="fullscreen; picture-in-picture; clipboard-write"
+                  loading="lazy"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                />
+              </div>
+            </div>
+          ) : mode === 'compact' ? (
+            <a
+              className="inline-flex max-w-full items-center gap-2 rounded-full px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-50 hover:text-indigo-600"
+              href={block.props.url}
+              target="_blank"
+              rel="noreferrer"
+              contentEditable={false}
+            >
+              {block.props.favicon ? (
+                <img className="h-4 w-4 shrink-0 rounded" src={block.props.favicon} alt="" />
+              ) : (
+                <Link2 className="shrink-0 text-gray-400" size={16} />
+              )}
+              <span className="truncate">{block.props.title || domain}</span>
+              <ExternalLink className="shrink-0 text-gray-400" size={14} />
+            </a>
+          ) : (
+            <a
+              className="flex overflow-hidden rounded-xl transition hover:shadow"
+              href={block.props.url}
+              target="_blank"
+              rel="noreferrer"
+              contentEditable={false}
+            >
+              <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden bg-gray-50 sm:h-32 sm:w-40">
+                {block.props.image && !imgError ? (
                   <img
-                    className="h-4 w-4 shrink-0 rounded"
+                    className="h-full w-full object-cover"
+                    src={block.props.image}
+                    alt=""
+                    onError={() => setImgError(true)}
+                  />
+                ) : block.props.favicon ? (
+                  <img
+                    className="h-10 w-10 rounded-lg"
                     src={block.props.favicon}
                     alt=""
                   />
+                ) : (
+                  <Link2 className="text-gray-300" size={32} />
                 )}
-                <span className="truncate">{block.props.siteName || domain}</span>
               </div>
-            </div>
-          </a>
+
+              <div className="flex min-w-0 flex-1 flex-col gap-2 p-4 pr-10">
+                <div className="line-clamp-2 font-medium text-gray-900">
+                  {block.props.title || domain}
+                </div>
+                {block.props.description && (
+                  <div className="line-clamp-2 text-sm text-gray-500">
+                    {block.props.description}
+                  </div>
+                )}
+                <div className="mt-auto flex min-w-0 items-center gap-2 text-xs text-gray-400">
+                  {block.props.favicon && (
+                    <img
+                      className="h-4 w-4 shrink-0 rounded"
+                      src={block.props.favicon}
+                      alt=""
+                    />
+                  )}
+                  <span className="truncate">{block.props.siteName || domain}</span>
+                </div>
+              </div>
+            </a>
+          )}
         </div>
       );
     },

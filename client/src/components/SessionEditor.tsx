@@ -65,8 +65,8 @@ export default function SessionEditor({ initialContent, editable = true, onChang
               },
               {
                 key: 'linkCard',
-                title: 'Carte de lien',
-                subtext: 'Insérer une prévisualisation de lien',
+                title: 'Lien / Embed',
+                subtext: 'Video code slides PDF ou carte',
                 aliases: ['lien', 'link', 'carte', 'url', 'preview'],
                 group: 'Média',
                 icon: <Link2 size={18} />,
