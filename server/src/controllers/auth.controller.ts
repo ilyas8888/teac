@@ -33,7 +33,12 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   }
   const passwordHash = await bcrypt.hash(password, 10);
   const user = await prisma.user.create({
-    data: { nom, prenom, email, passwordHash, ecole, matieres: matieres || [] },
+    data: {
+      nom, prenom, email, passwordHash, ecole, matieres: matieres || [],
+      niveauxOptions: ['Technicien Spécialisé', 'Technicien', 'Spécialisation', 'Qualification'],
+      groupesOptions: ['Groupe 1', 'Groupe 2', 'Groupe 3', 'Groupe 4'],
+      etablissementsOptions: ['ISTA Hay Riad', 'ISTA Sala Al Jadida', 'OFPPT'],
+    },
   });
   const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, { expiresIn: '7d' });
   res.status(201).json({ token, user: { id: user.id, nom, prenom, email } });

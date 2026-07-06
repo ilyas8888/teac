@@ -14,6 +14,7 @@ import messageRoutes from './routes/message.routes';
 import eventRoutes from './routes/event.routes';
 import aiRoutes from './routes/ai.routes';
 import dashboardRoutes from './routes/dashboard.routes';
+import settingsRoutes from './routes/settings.routes';
 import { errorHandler } from './middleware/error.middleware';
 
 dotenv.config();
@@ -37,6 +38,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/settings', settingsRoutes);
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 

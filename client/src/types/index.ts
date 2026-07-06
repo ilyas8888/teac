@@ -11,9 +11,17 @@ export interface Class {
   id: string;
   nom: string;
   niveau: string;
+  groupe?: string;
+  etablissement?: string;
   annee: string;
   teacherId: string;
   _count?: { students: number };
+}
+
+export interface UserSettings {
+  niveauxOptions: string[];
+  groupesOptions: string[];
+  etablissementsOptions: string[];
 }
 
 export interface Student {
@@ -23,7 +31,7 @@ export interface Student {
   emailParent?: string;
   dateNaissance?: string;
   classId: string;
-  class?: { nom: string };
+  class?: { nom: string; groupe?: string; etablissement?: string };
   _count?: { absences: number; grades: number };
 }
 

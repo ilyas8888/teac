@@ -47,7 +47,7 @@ export default function StudentsPage() {
         <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
           <option value="">Toutes les classes</option>
-          {classes.map((c) => <option key={c.id} value={c.id}>{c.nom} — {c.niveau}</option>)}
+          {classes.map((c) => <option key={c.id} value={c.id}>{c.nom}{c.groupe ? ` — ${c.groupe}` : ''} ({c.niveau})</option>)}
         </select>
       </div>
 
@@ -105,7 +105,7 @@ export default function StudentsPage() {
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="text-left px-6 py-3 font-medium text-gray-600">Élève</th>
-                <th className="text-left px-6 py-3 font-medium text-gray-600">Classe</th>
+                <th className="text-left px-6 py-3 font-medium text-gray-600">Classe / Groupe</th>
                 <th className="text-left px-6 py-3 font-medium text-gray-600">Email parent</th>
                 <th className="text-center px-6 py-3 font-medium text-gray-600">Absences</th>
                 <th className="px-6 py-3"></th>
@@ -117,7 +117,11 @@ export default function StudentsPage() {
                   <td className="px-6 py-4">
                     <div className="font-medium text-gray-900">{s.prenom} {s.nom}</div>
                   </td>
-                  <td className="px-6 py-4 text-gray-600">{s.class?.nom}</td>
+                  <td className="px-6 py-4">
+                    <div className="text-gray-900 font-medium">{s.class?.nom}</div>
+                    {s.class?.groupe && <div className="text-xs text-indigo-600">{s.class.groupe}</div>}
+                    {s.class?.etablissement && <div className="text-xs text-gray-400">{s.class.etablissement}</div>}
+                  </td>
                   <td className="px-6 py-4 text-gray-600">{s.emailParent || '—'}</td>
                   <td className="px-6 py-4 text-center">
                     {(s._count?.absences || 0) > 0 ? (

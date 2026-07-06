@@ -20,7 +20,7 @@ export const getStudents = async (req: AuthRequest, res: Response): Promise<void
       class: { teacherId },
     },
     include: {
-      class: { select: { nom: true } },
+      class: { select: { nom: true, groupe: true, etablissement: true } },
       _count: { select: { absences: true, grades: true } },
     },
     orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],

@@ -6,6 +6,8 @@ import { AuthRequest } from '../middleware/auth.middleware';
 const classSchema = z.object({
   nom: z.string().min(1),
   niveau: z.string().min(1),
+  groupe: z.string().optional(),
+  etablissement: z.string().optional(),
   annee: z.string().min(1),
 });
 

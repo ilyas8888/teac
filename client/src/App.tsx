@@ -12,6 +12,7 @@ import AIAssistantPage from './pages/AIAssistantPage';
 import MessagesPage from './pages/MessagesPage';
 import CalendarPage from './pages/CalendarPage';
 import ClassesPage from './pages/ClassesPage';
+import SettingsPage from './pages/SettingsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -41,6 +42,7 @@ function AppRoutes() {
         <Route path="ai-assistant" element={<AIAssistantPage />} />
         <Route path="messages" element={<MessagesPage />} />
         <Route path="calendar" element={<CalendarPage />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>
   );

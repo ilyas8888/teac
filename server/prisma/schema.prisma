@@ -17,6 +17,9 @@ model User {
   passwordHash String
   ecole        String?
   matieres     String[]
+  niveauxOptions      String[]
+  groupesOptions      String[]
+  etablissementsOptions String[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -30,10 +33,12 @@ model User {
 
 model Class {
   id        String   @id @default(uuid())
-  nom       String
-  niveau    String
-  annee     String
-  teacherId String
+  nom          String
+  niveau       String
+  groupe       String?
+  etablissement String?
+  annee        String
+  teacherId    String
   teacher   User     @relation(fields: [teacherId], references: [id])
   createdAt DateTime @default(now())
 

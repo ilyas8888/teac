@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, BookOpen, Users, ClipboardList,
-  MessageSquare, Calendar, Sparkles, LogOut, GraduationCap, School
+  MessageSquare, Calendar, Sparkles, LogOut, GraduationCap, School, Settings2
 } from 'lucide-react';
 import { useAuth } from '../../store/AuthContext';
 
@@ -14,6 +14,7 @@ const nav = [
   { to: '/ai-assistant', label: 'Assistant IA', icon: Sparkles },
   { to: '/messages', label: 'Messages', icon: MessageSquare },
   { to: '/calendar', label: 'Calendrier', icon: Calendar },
+  { to: '/settings', label: 'Paramètres', icon: Settings2 },
 ];
 
 export default function Sidebar() {
