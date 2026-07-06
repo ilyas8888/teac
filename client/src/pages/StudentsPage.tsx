@@ -8,7 +8,7 @@ export default function StudentsPage() {
   const qc = useQueryClient();
   const [selectedClass, setSelectedClass] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ nom: '', prenom: '', emailParent: '', classId: '' });
+  const [form, setForm] = useState({ nom: '', prenom: '', email: '', classId: '' });
 
   const { data: classes = [] } = useQuery<Class[]>({
     queryKey: ['classes'],
@@ -22,7 +22,7 @@ export default function StudentsPage() {
 
   const create = useMutation({
     mutationFn: (data: typeof form) => api.post('/students', data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['students'] }); setShowForm(false); setForm({ nom: '', prenom: '', emailParent: '', classId: '' }); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['students'] }); setShowForm(false); setForm({ nom: '', prenom: '', email: '', classId: '' }); },
   });
 
   const remove = useMutation({
@@ -66,8 +66,8 @@ export default function StudentsPage() {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email parent</label>
-              <input type="email" value={form.emailParent} onChange={(e) => setForm({ ...form, emailParent: e.target.value })}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
             <div>
@@ -106,7 +106,7 @@ export default function StudentsPage() {
               <tr>
                 <th className="text-left px-6 py-3 font-medium text-gray-600">Élève</th>
                 <th className="text-left px-6 py-3 font-medium text-gray-600">Classe / Groupe</th>
-                <th className="text-left px-6 py-3 font-medium text-gray-600">Email parent</th>
+                <th className="text-left px-6 py-3 font-medium text-gray-600">Email</th>
                 <th className="text-center px-6 py-3 font-medium text-gray-600">Absences</th>
                 <th className="px-6 py-3"></th>
               </tr>
@@ -122,7 +122,7 @@ export default function StudentsPage() {
                     {s.class?.groupe && <div className="text-xs text-indigo-600">{s.class.groupe}</div>}
                     {s.class?.etablissement && <div className="text-xs text-gray-400">{s.class.etablissement}</div>}
                   </td>
-                  <td className="px-6 py-4 text-gray-600">{s.emailParent || '—'}</td>
+                  <td className="px-6 py-4 text-gray-600">{s.email || '—'}</td>
                   <td className="px-6 py-4 text-center">
                     {(s._count?.absences || 0) > 0 ? (
                       <span className="flex items-center justify-center gap-1 text-orange-600">

@@ -6,7 +6,7 @@ import { AuthRequest } from '../middleware/auth.middleware';
 const studentSchema = z.object({
   nom: z.string().min(1),
   prenom: z.string().min(1),
-  emailParent: z.string().email().optional().nullable(),
+  email: z.string().email().optional().nullable(),
   dateNaissance: z.string().optional().nullable(),
   classId: z.string().uuid(),
 });

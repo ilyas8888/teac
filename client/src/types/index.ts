@@ -28,7 +28,7 @@ export interface Student {
   id: string;
   nom: string;
   prenom: string;
-  emailParent?: string;
+  email?: string;
   dateNaissance?: string;
   classId: string;
   class?: { nom: string; groupe?: string; etablissement?: string };

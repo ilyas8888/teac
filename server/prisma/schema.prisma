@@ -50,7 +50,7 @@ model Student {
   id           String   @id @default(uuid())
   nom          String
   prenom       String
-  emailParent  String?
+  email        String?
   dateNaissance DateTime?
   classId      String
   class        Class    @relation(fields: [classId], references: [id])

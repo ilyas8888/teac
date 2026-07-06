@@ -44,16 +44,16 @@ async function main() {
   });
 
   const studentsData = [
-    { id: 'stu-1', nom: 'Alaoui', prenom: 'Youssef', emailParent: 'parent1@gmail.com', classId: classeTSI.id },
-    { id: 'stu-2', nom: 'Benali', prenom: 'Fatima', emailParent: 'parent2@gmail.com', classId: classeTSI.id },
-    { id: 'stu-3', nom: 'Chraibi', prenom: 'Omar', emailParent: 'parent3@gmail.com', classId: classeTSI.id },
-    { id: 'stu-4', nom: 'Daoudi', prenom: 'Nadia', emailParent: 'parent4@gmail.com', classId: classeTSI.id },
-    { id: 'stu-5', nom: 'El Fassi', prenom: 'Mehdi', emailParent: 'parent5@gmail.com', classId: classeTSI.id },
-    { id: 'stu-6', nom: 'Filali', prenom: 'Sara', emailParent: 'parent6@gmail.com', classId: classeTSI.id },
-    { id: 'stu-7', nom: 'Ghazi', prenom: 'Amine', emailParent: 'parent7@gmail.com', classId: classeDEV.id },
-    { id: 'stu-8', nom: 'Hamdani', prenom: 'Layla', emailParent: 'parent8@gmail.com', classId: classeDEV.id },
-    { id: 'stu-9', nom: 'Idrissi', prenom: 'Karim', emailParent: 'parent9@gmail.com', classId: classeDEV.id },
-    { id: 'stu-10', nom: 'Jamai', prenom: 'Zineb', emailParent: 'parent10@gmail.com', classId: classeDEV.id },
+    { id: 'stu-1', nom: 'Alaoui', prenom: 'Youssef', email: 'parent1@gmail.com', classId: classeTSI.id },
+    { id: 'stu-2', nom: 'Benali', prenom: 'Fatima', email: 'parent2@gmail.com', classId: classeTSI.id },
+    { id: 'stu-3', nom: 'Chraibi', prenom: 'Omar', email: 'parent3@gmail.com', classId: classeTSI.id },
+    { id: 'stu-4', nom: 'Daoudi', prenom: 'Nadia', email: 'parent4@gmail.com', classId: classeTSI.id },
+    { id: 'stu-5', nom: 'El Fassi', prenom: 'Mehdi', email: 'parent5@gmail.com', classId: classeTSI.id },
+    { id: 'stu-6', nom: 'Filali', prenom: 'Sara', email: 'parent6@gmail.com', classId: classeTSI.id },
+    { id: 'stu-7', nom: 'Ghazi', prenom: 'Amine', email: 'parent7@gmail.com', classId: classeDEV.id },
+    { id: 'stu-8', nom: 'Hamdani', prenom: 'Layla', email: 'parent8@gmail.com', classId: classeDEV.id },
+    { id: 'stu-9', nom: 'Idrissi', prenom: 'Karim', email: 'parent9@gmail.com', classId: classeDEV.id },
+    { id: 'stu-10', nom: 'Jamai', prenom: 'Zineb', email: 'parent10@gmail.com', classId: classeDEV.id },
   ];
 
   const students: Record<string, { id: string }> = {};
