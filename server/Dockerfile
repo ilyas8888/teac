@@ -23,11 +23,11 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-RUN npm ci --only=production
+RUN npm ci
 RUN npx prisma generate
 
 COPY --from=builder /app/dist ./dist
 
 EXPOSE 3001
 
-CMD ["node", "dist/app.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/app.js"]
