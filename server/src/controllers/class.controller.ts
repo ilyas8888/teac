@@ -53,6 +53,9 @@ export const updateClass = async (req: AuthRequest, res: Response): Promise<void
 
 export const deleteClass = async (req: AuthRequest, res: Response): Promise<void> => {
   const teacherId = req.userId as string;
-  await prisma.class.deleteMany({ where: { id: req.params.id, teacherId } });
+  const cls = await prisma.class.findFirst({ where: { id: req.params.id, teacherId } });
+  if (!cls) { res.status(404).json({ message: 'Classe non trouvée' }); return; }
+  await prisma.student.deleteMany({ where: { classId: req.params.id } });
+  await prisma.class.delete({ where: { id: req.params.id } });
   res.json({ message: 'Classe supprimée' });
 };
