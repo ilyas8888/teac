@@ -11,6 +11,7 @@ import EvaluationsPage from './pages/EvaluationsPage';
 import AIAssistantPage from './pages/AIAssistantPage';
 import MessagesPage from './pages/MessagesPage';
 import CalendarPage from './pages/CalendarPage';
+import ClassesPage from './pages/ClassesPage';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -33,6 +34,7 @@ function AppRoutes() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<DashboardPage />} />
+        <Route path="classes" element={<ClassesPage />} />
         <Route path="courses" element={<CoursesPage />} />
         <Route path="students" element={<StudentsPage />} />
         <Route path="evaluations" element={<EvaluationsPage />} />

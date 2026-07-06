@@ -1,12 +1,13 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, BookOpen, Users, ClipboardList,
-  MessageSquare, Calendar, Sparkles, LogOut, GraduationCap
+  MessageSquare, Calendar, Sparkles, LogOut, GraduationCap, School
 } from 'lucide-react';
 import { useAuth } from '../../store/AuthContext';
 
 const nav = [
   { to: '/', label: 'Tableau de bord', icon: LayoutDashboard },
+  { to: '/classes', label: 'Classes', icon: School },
   { to: '/courses', label: 'Cours & Séances', icon: BookOpen },
   { to: '/students', label: 'Élèves', icon: Users },
   { to: '/evaluations', label: 'Évaluations', icon: ClipboardList },
