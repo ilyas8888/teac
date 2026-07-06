@@ -1,4 +1,4 @@
-import { useCreateBlockNote } from '@blocknote/react';
+﻿import { useCreateBlockNote } from '@blocknote/react';
 import {
   filterSuggestionItems,
   insertOrUpdateBlockForSlashMenu,
@@ -8,7 +8,7 @@ import {
   SuggestionMenuController,
 } from '@blocknote/react';
 import { BlockNoteView } from '@blocknote/mantine';
-import { GitBranch } from 'lucide-react';
+import { GitBranch, Link2 } from 'lucide-react';
 import '@blocknote/core/fonts/inter.css';
 import '@blocknote/mantine/style.css';
 import { uploadToCloudinary } from '../lib/cloudinary';
@@ -63,6 +63,18 @@ export default function SessionEditor({ initialContent, editable = true, onChang
                     type: 'mermaid',
                   }),
               },
+              {
+                key: 'linkCard',
+                title: 'Carte de lien',
+                subtext: 'Insérer une prévisualisation de lien',
+                aliases: ['lien', 'link', 'carte', 'url', 'preview'],
+                group: 'Média',
+                icon: <Link2 size={18} />,
+                onItemClick: () =>
+                  insertOrUpdateBlockForSlashMenu(editor, {
+                    type: 'linkCard',
+                  }),
+              },
             ],
             query,
           )
@@ -71,3 +83,4 @@ export default function SessionEditor({ initialContent, editable = true, onChang
     </BlockNoteView>
   );
 }
+

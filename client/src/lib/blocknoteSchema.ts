@@ -1,9 +1,11 @@
 import { BlockNoteSchema, defaultBlockSpecs } from '@blocknote/core';
+import { LinkCardBlock } from '../components/blocks/LinkCardBlock';
 import { MermaidBlock } from '../components/blocks/MermaidBlock';
 
 export const teacBlockNoteSchema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
+    linkCard: LinkCardBlock,
     mermaid: MermaidBlock,
   },
 });
