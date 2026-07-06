@@ -14,8 +14,12 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('teac_token');
-      window.location.href = '/login';
+      const onAuthPage = window.location.pathname.includes('/login') ||
+                         window.location.pathname.includes('/register');
+      if (!onAuthPage) {
+        localStorage.removeItem('teac_token');
+        window.location.href = import.meta.env.BASE_URL + 'login';
+      }
     }
     return Promise.reject(err);
   }
