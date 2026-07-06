@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Clock, Users, Calendar, Check, Loader2, Target } from 'lucide-react';
+import { ArrowLeft, Clock, Users, Calendar, Check, Loader2, Target, Presentation, Download } from 'lucide-react';
 import api from '../services/api';
 import type { Session } from '../types';
 import SessionEditor from '../components/SessionEditor';
@@ -15,6 +15,8 @@ export default function SessionEditorPage() {
   const navigate = useNavigate();
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const apiBase = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3001/api';
+  const presentUrl = `${apiBase}/present/${sessionId}`;
 
   const { data: session, isLoading } = useQuery<Session>({
     queryKey: ['session', sessionId],
@@ -62,7 +64,28 @@ export default function SessionEditorPage() {
             className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors">
             <ArrowLeft size={16} /> {session.course?.nom || 'Cours'}
           </button>
-          <SaveIndicator state={saveState} />
+          <div className="flex items-center gap-2">
+            <SaveIndicator state={saveState} />
+            {session && (
+              <>
+                <a
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700"
+                  href={presentUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Presentation size={15} /> Présenter
+                </a>
+                <a
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:border-gray-300 hover:text-gray-900"
+                  href={`${presentUrl}?download=1`}
+                  download
+                >
+                  <Download size={15} /> HTML
+                </a>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
