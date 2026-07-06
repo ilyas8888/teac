@@ -23,11 +23,16 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
-RUN npm ci
-RUN npx prisma generate
+RUN npm ci --only=production
+
+# Use the Prisma client generated in builder (avoids cache/regen issues)
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+# Copy prisma CLI from builder for running migrations
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
 
 COPY --from=builder /app/dist ./dist
 
 EXPOSE 3001
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/app.js"]
+CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node dist/app.js"]
