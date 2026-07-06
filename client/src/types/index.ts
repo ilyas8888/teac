@@ -51,6 +51,7 @@ export interface Session {
   contenu?: string;
   duree: number;
   date: string;
+  content?: unknown; // BlockNote document (array of blocks) stored as JSON
   courseId: string;
   classId: string;
   course?: { nom: string; matiere?: string };

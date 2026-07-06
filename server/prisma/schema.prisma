@@ -80,6 +80,7 @@ model Session {
   titre       String
   objectifs   String
   contenu     String?
+  content     Json?
   duree       Int
   date        DateTime
   courseId    String

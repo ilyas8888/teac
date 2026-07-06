@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './store/AuthContext';
@@ -8,6 +9,9 @@ import DashboardPage from './pages/DashboardPage';
 import CoursesPage from './pages/CoursesPage';
 import CourseDetailPage from './pages/CourseDetailPage';
 import StudentsPage from './pages/StudentsPage';
+
+// Heavy: pulls in BlockNote — split out of the main bundle
+const SessionEditorPage = lazy(() => import('./pages/SessionEditorPage'));
 import EvaluationsPage from './pages/EvaluationsPage';
 import AIAssistantPage from './pages/AIAssistantPage';
 import MessagesPage from './pages/MessagesPage';
@@ -39,6 +43,8 @@ function AppRoutes() {
         <Route path="classes" element={<ClassesPage />} />
         <Route path="courses" element={<CoursesPage />} />
         <Route path="courses/:id" element={<CourseDetailPage />} />
+        <Route path="courses/:courseId/sessions/:sessionId"
+          element={<Suspense fallback={<div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>}><SessionEditorPage /></Suspense>} />
         <Route path="students" element={<StudentsPage />} />
         <Route path="evaluations" element={<EvaluationsPage />} />
         <Route path="ai-assistant" element={<AIAssistantPage />} />

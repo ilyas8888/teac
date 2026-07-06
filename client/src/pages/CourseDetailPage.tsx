@@ -176,11 +176,13 @@ export default function CourseDetailPage() {
         <div className="space-y-6">
           {upcoming.length > 0 && (
             <TimelineGroup title="À venir & aujourd'hui" sessions={upcoming}
-              expanded={expanded} setExpanded={setExpanded} onEdit={openEdit} onDelete={remove.mutate} />
+              expanded={expanded} setExpanded={setExpanded} onEdit={openEdit} onDelete={remove.mutate}
+              onOpenContent={(s) => navigate(`/courses/${id}/sessions/${s.id}`)} />
           )}
           {past.length > 0 && (
             <TimelineGroup title="Séances passées" sessions={past} muted
-              expanded={expanded} setExpanded={setExpanded} onEdit={openEdit} onDelete={remove.mutate} />
+              expanded={expanded} setExpanded={setExpanded} onEdit={openEdit} onDelete={remove.mutate}
+              onOpenContent={(s) => navigate(`/courses/${id}/sessions/${s.id}`)} />
           )}
         </div>
       )}
@@ -282,7 +284,7 @@ function Metric({ icon, value, label }: { icon: React.ReactNode; value: React.Re
   );
 }
 
-function TimelineGroup({ title, sessions, muted, expanded, setExpanded, onEdit, onDelete }: {
+function TimelineGroup({ title, sessions, muted, expanded, setExpanded, onEdit, onDelete, onOpenContent }: {
   title: string;
   sessions: Session[];
   muted?: boolean;
@@ -290,6 +292,7 @@ function TimelineGroup({ title, sessions, muted, expanded, setExpanded, onEdit, 
   setExpanded: (id: string | null) => void;
   onEdit: (s: Session) => void;
   onDelete: (id: string) => void;
+  onOpenContent: (s: Session) => void;
 }) {
   return (
     <div>
@@ -300,6 +303,7 @@ function TimelineGroup({ title, sessions, muted, expanded, setExpanded, onEdit, 
             isOpen={expanded === s.id}
             onToggle={() => setExpanded(expanded === s.id ? null : s.id)}
             onEdit={() => onEdit(s)}
+            onOpenContent={() => onOpenContent(s)}
             onDelete={() => { if (confirm(`Supprimer la séance « ${s.titre} » ?`)) onDelete(s.id); }} />
         ))}
       </div>
@@ -307,16 +311,18 @@ function TimelineGroup({ title, sessions, muted, expanded, setExpanded, onEdit, 
   );
 }
 
-function SessionCard({ session, muted, isOpen, onToggle, onEdit, onDelete }: {
+function SessionCard({ session, muted, isOpen, onToggle, onEdit, onDelete, onOpenContent }: {
   session: Session;
   muted?: boolean;
   isOpen: boolean;
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onOpenContent: () => void;
 }) {
   const status = sessionStatus(session.date);
   const meta = STATUS_META[status];
+  const hasContent = Array.isArray(session.content) && session.content.length > 0;
   return (
     <div className={`bg-white rounded-xl border shadow-sm transition-all ${isOpen ? 'border-indigo-200 ring-1 ring-indigo-100' : 'border-gray-200'} ${muted ? 'opacity-90' : ''}`}>
       <button onClick={onToggle} className="w-full flex items-center gap-4 p-4 text-left">
@@ -337,9 +343,12 @@ function SessionCard({ session, muted, isOpen, onToggle, onEdit, onDelete }: {
           <h4 className="font-medium text-gray-900 truncate">{session.titre}</h4>
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
+          {hasContent && (
+            <span className="text-xs text-indigo-500 flex items-center gap-1" title="Contenu pédagogique rédigé"><FileText size={12} /></span>
+          )}
           {(session._count?.resources ?? 0) > 0 && (
-            <span className="text-xs text-gray-400 flex items-center gap-1 mr-1"><Paperclip size={12} /> {session._count?.resources}</span>
+            <span className="text-xs text-gray-400 flex items-center gap-1"><Paperclip size={12} /> {session._count?.resources}</span>
           )}
           <ChevronDown size={18} className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </div>
@@ -356,7 +365,11 @@ function SessionCard({ session, muted, isOpen, onToggle, onEdit, onDelete }: {
 
           <ResourceManager sessionId={session.id} />
 
-          <div className="flex gap-2 pt-2">
+          <div className="flex flex-wrap gap-2 pt-2">
+            <button onClick={onOpenContent}
+              className="flex items-center gap-1.5 text-sm font-medium text-white bg-indigo-900 hover:bg-indigo-800 rounded-lg px-3 py-1.5 transition-colors">
+              <FileText size={14} /> {hasContent ? 'Ouvrir le contenu' : 'Rédiger le contenu'}
+            </button>
             <button onClick={onEdit}
               className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-indigo-700 border border-gray-200 hover:border-indigo-200 rounded-lg px-3 py-1.5 transition-colors">
               <Pencil size={14} /> Modifier
