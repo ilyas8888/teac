@@ -14,7 +14,7 @@
           var q = params.get('q') || '';
           window.history.replaceState(
             null, null,
-            window.location.pathname + decodeURIComponent(p) + decodeURIComponent(q)
+            window.location.pathname.replace(/\/$/, '') + decodeURIComponent(p) + decodeURIComponent(q)
           );
         }
       })();
