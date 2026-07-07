@@ -91,6 +91,8 @@ function BlockContent({ block, className, style }: { block: EditableBlock; class
   if (block.type === 'numberedListItem') return <div className={`${className} flex gap-2 text-xl`} style={style}><span>1.</span><span>{text}</span></div>;
   if (block.type === 'codeBlock') return <pre className={`${className} overflow-x-auto bg-gray-950 font-mono text-sm text-gray-100`} style={style}><code>{text}</code></pre>;
   if (block.type === 'mermaid') return <pre className={`${className} overflow-x-auto border border-indigo-100 bg-indigo-50 font-mono text-sm text-indigo-900`} style={style}>{text}</pre>;
+  if (block.type === 'divider') return <hr className="my-3 border-t border-gray-300" style={style} />;
+  if (block.type === 'quote') return <blockquote className={`${className} border-l-4 border-purple-300 pl-4 text-xl italic leading-relaxed text-gray-700`} style={style}>{text}</blockquote>;
 
   if (block.type === 'image') {
     const url = stringProp(block, 'url');

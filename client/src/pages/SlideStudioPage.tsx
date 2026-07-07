@@ -24,6 +24,7 @@ type SlideStudioAction =
   | { type: 'UPDATE_BLOCK_TEXT'; text: string }
   | { type: 'UPDATE_BLOCK_STYLE'; style: BlockStyle }
   | { type: 'UPDATE_SLIDE_STYLE'; backgroundColor?: string }
+  | { type: 'INSERT_BLOCK'; blockType: string; props?: Record<string, unknown> }
   | { type: 'INSERT_IMAGE_BLOCK'; url: string }
   | { type: 'INSERT_LINK_BLOCK'; url: string; title?: string }
   | { type: 'MOVE_BLOCK_UP'; blockId: string }
@@ -72,6 +73,18 @@ function reducer(state: SlideStudioState, action: SlideStudioAction): SlideStudi
         return { ...block, style: { ...block.style, ...action.style } };
       }),
     });
+  }
+
+  if (action.type === 'INSERT_BLOCK') {
+    const block = createEditableBlock(action.blockType, action.props);
+
+    return {
+      ...updateSlide(state, slideIndex, {
+        ...currentSlide,
+        blocks: [...currentSlide.blocks, block],
+      }),
+      selectedBlockId: block.id,
+    };
   }
 
   if (action.type === 'INSERT_IMAGE_BLOCK') {
@@ -155,6 +168,34 @@ function updateSlide(state: SlideStudioState, slideIndex: number, slide: Editabl
     ...state,
     slides: state.slides.map((item, index) => (index === slideIndex ? slide : item)),
   };
+}
+
+function createEditableBlock(blockType: string, props: Record<string, unknown> = {}): EditableBlock {
+  return {
+    id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${blockType}-${Date.now()}`,
+    type: blockType,
+    props,
+    content: undefined,
+    children: [],
+    style: defaultStyleForBlock(blockType),
+    editableText: defaultTextForBlock(blockType, props),
+  };
+}
+
+function defaultStyleForBlock(blockType: string): BlockStyle {
+  if (blockType === 'heading') return { fontWeight: 'bold' };
+  if (blockType === 'quote') return { fontStyle: 'italic' };
+  return {};
+}
+
+function defaultTextForBlock(blockType: string, props: Record<string, unknown>) {
+  if (blockType === 'heading') return `Heading ${Number(props.level ?? 1)}`;
+  if (blockType === 'paragraph') return 'Nouveau paragraphe';
+  if (blockType === 'bulletListItem') return 'Nouvel element';
+  if (blockType === 'numberedListItem') return 'Nouvel element';
+  if (blockType === 'codeBlock') return 'console.log("Hello world");';
+  if (blockType === 'quote') return 'Citation';
+  return '';
 }
 
 export default function SlideStudioPage() {
@@ -243,6 +284,7 @@ export default function SlideStudioPage() {
           onMoveToNext={(blockId) => dispatch({ type: 'MOVE_BLOCK_TO_SLIDE', blockId, direction: 1 })}
           onInsertImage={(url) => dispatch({ type: 'INSERT_IMAGE_BLOCK', url })}
           onInsertLink={(url, title) => dispatch({ type: 'INSERT_LINK_BLOCK', url, title })}
+          onInsertBlock={(blockType, props) => dispatch({ type: 'INSERT_BLOCK', blockType, props })}
           onUpdateSlideStyle={(backgroundColor) => dispatch({ type: 'UPDATE_SLIDE_STYLE', backgroundColor })}
           onSelectSlide={(index) => dispatch({ type: 'SELECT_SLIDE', index })}
         />

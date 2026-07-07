@@ -1,5 +1,22 @@
-import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Image as ImageIcon, Link, X } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Code2,
+  Heading1,
+  Heading2,
+  Heading3,
+  Image as ImageIcon,
+  Link as LinkIcon,
+  List,
+  ListOrdered,
+  Minus,
+  Pilcrow,
+  Plus,
+  Quote,
+  X,
+} from 'lucide-react';
 import EditableBlockItem from './EditableBlockItem';
 import ImageUpload from '../ImageUpload';
 import type { EditableSlide } from '../../lib/slideUtils';
@@ -17,18 +34,78 @@ interface SlideCanvasProps {
   onMoveToNext: (blockId: string) => void;
   onInsertImage: (url: string) => void;
   onInsertLink: (url: string, title?: string) => void;
+  onInsertBlock: (blockType: string, props?: Record<string, unknown>) => void;
   onUpdateSlideStyle: (backgroundColor?: string) => void;
   onSelectSlide: (index: number) => void;
 }
 
+const insertSections = [
+  {
+    label: 'Texte',
+    items: [
+      { label: 'Heading 1', icon: <Heading1 size={15} />, blockType: 'heading', props: { level: 1 } },
+      { label: 'Heading 2', icon: <Heading2 size={15} />, blockType: 'heading', props: { level: 2 } },
+      { label: 'Heading 3', icon: <Heading3 size={15} />, blockType: 'heading', props: { level: 3 } },
+      { label: 'Paragraph', icon: <Pilcrow size={15} />, blockType: 'paragraph' },
+    ],
+  },
+  {
+    label: 'Listes',
+    items: [
+      { label: 'Bullet List', icon: <List size={15} />, blockType: 'bulletListItem' },
+      { label: 'Numbered List', icon: <ListOrdered size={15} />, blockType: 'numberedListItem' },
+    ],
+  },
+  {
+    label: 'Media',
+    items: [
+      { label: 'Image', icon: <ImageIcon size={15} />, popover: 'image' },
+      { label: 'Lien', icon: <LinkIcon size={15} />, popover: 'link' },
+    ],
+  },
+  {
+    label: 'Autres',
+    items: [
+      { label: 'Code Block', icon: <Code2 size={15} />, blockType: 'codeBlock' },
+      { label: 'Divider', icon: <Minus size={15} />, blockType: 'divider' },
+      { label: 'Quote', icon: <Quote size={15} />, blockType: 'quote' },
+    ],
+  },
+] satisfies InsertSection[];
+
+interface InsertSection {
+  label: string;
+  items: InsertItem[];
+}
+
+type InsertItem =
+  | { label: string; icon: ReactNode; blockType: string; props?: Record<string, unknown>; popover?: never }
+  | { label: string; icon: ReactNode; popover: 'image' | 'link'; blockType?: never; props?: never };
+
 export default function SlideCanvas(props: SlideCanvasProps) {
-  const { slide, slideIndex, totalSlides, selectedBlockId, onSelectBlock, onMoveUp, onMoveDown, onMoveToPrev, onMoveToNext, onInsertImage, onInsertLink, onUpdateSlideStyle, onSelectSlide } = props;
+  const { slide, slideIndex, totalSlides, selectedBlockId, onSelectBlock, onMoveUp, onMoveDown, onMoveToPrev, onMoveToNext, onInsertImage, onInsertLink, onInsertBlock, onUpdateSlideStyle, onSelectSlide } = props;
+  const [showInsertMenu, setShowInsertMenu] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [showLinkForm, setShowLinkForm] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
   const [linkTitle, setLinkTitle] = useState('');
   const backgroundColor = slide.slideStyle.backgroundColor || '#ffffff';
   const color = getAutoContrastColor(backgroundColor);
+
+  function handleInsertItem(item: InsertItem) {
+    setShowInsertMenu(false);
+    if (item.popover === 'image') {
+      setShowImageUpload(true);
+      setShowLinkForm(false);
+      return;
+    }
+    if (item.popover === 'link') {
+      setShowLinkForm(true);
+      setShowImageUpload(false);
+      return;
+    }
+    onInsertBlock(item.blockType, item.props);
+  }
 
   return (
     <main className="flex min-w-0 flex-1 flex-col bg-gray-100">
@@ -43,14 +120,25 @@ export default function SlideCanvas(props: SlideCanvasProps) {
           </button>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
+          <div className="relative flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setShowLinkForm((open) => !open)}
+              onClick={() => setShowInsertMenu((open) => !open)}
               className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:border-gray-300 hover:text-gray-900"
             >
-              <Link size={15} /> Lien
+              <Plus size={15} /> Inserer <ChevronDown size={14} />
             </button>
+            {showInsertMenu && (
+              <div className="absolute right-0 top-10 z-30 w-64 overflow-hidden rounded-lg border border-gray-200 bg-white py-2 shadow-lg">
+                {insertSections.map((section, index) => (
+                  <InsertMenuSection key={section.label} label={section.label} isLast={index === insertSections.length - 1}>
+                    {section.items.map((item) => (
+                      <InsertMenuItem key={item.label} icon={item.icon} label={item.label} onClick={() => handleInsertItem(item)} />
+                    ))}
+                  </InsertMenuSection>
+                ))}
+              </div>
+            )}
             {showLinkForm && (
               <form
                 className="flex items-center gap-2"
@@ -88,15 +176,6 @@ export default function SlideCanvas(props: SlideCanvasProps) {
                 </button>
               </form>
             )}
-          </div>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowImageUpload((open) => !open)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:border-gray-300 hover:text-gray-900"
-            >
-              <ImageIcon size={15} /> Image
-            </button>
             {showImageUpload && (
               <div className="absolute right-0 top-10 z-20 w-72 rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
                 <div className="mb-2 flex items-center justify-between">
@@ -167,5 +246,27 @@ export default function SlideCanvas(props: SlideCanvasProps) {
         </div>
       </div>
     </main>
+  );
+}
+
+function InsertMenuSection({ label, children, isLast = false }: { label: string; children: ReactNode; isLast?: boolean }) {
+  return (
+    <div className={isLast ? '' : 'mb-1 border-b border-gray-100 pb-1'}>
+      <div className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{label}</div>
+      {children}
+    </div>
+  );
+}
+
+function InsertMenuItem({ icon, label, onClick }: { icon: ReactNode; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-purple-50 hover:text-purple-800"
+    >
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500">{icon}</span>
+      <span>{label}</span>
+    </button>
   );
 }
