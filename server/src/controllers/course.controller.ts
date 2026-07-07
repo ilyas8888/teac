@@ -6,7 +6,13 @@ import { AuthRequest } from '../middleware/auth.middleware';
 const courseSchema = z.object({
   nom: z.string().min(1),
   matiere: z.string().min(1),
-  description: z.string().optional(),
+  description: z.string().optional().nullable(),
+  niveau: z.string().optional().nullable(),
+  objectifsGeneraux: z.string().optional().nullable(),
+  prerequis: z.string().optional().nullable(),
+  nbHeures: z.number().int().positive().optional().nullable(),
+  publicCible: z.string().optional().nullable(),
+  couleur: z.string().optional().nullable(),
 });
 
 export const getCourses = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -23,7 +29,11 @@ export const getCourse = async (req: AuthRequest, res: Response): Promise<void> 
   const teacherId = req.userId as string;
   const course = await prisma.course.findFirst({
     where: { id: req.params.id, teacherId },
-    include: { sessions: { orderBy: { date: 'asc' } }, evaluations: true },
+    include: {
+      modules: { orderBy: [{ ordre: 'asc' }, { createdAt: 'asc' }] },
+      sessions: { orderBy: { date: 'asc' } },
+      evaluations: true,
+    },
   });
   if (!course) { res.status(404).json({ message: 'Cours non trouvé' }); return; }
   res.json(course);

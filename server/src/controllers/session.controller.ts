@@ -12,7 +12,40 @@ const sessionSchema = z.object({
   date: z.string(),
   courseId: z.string().uuid(),
   classId: z.string().uuid(),
+  moduleId: z.string().optional().nullable(),
 });
+
+const ensureSessionRelations = async (
+  data: Partial<z.infer<typeof sessionSchema>>,
+  teacherId: string,
+  currentCourseId?: string,
+): Promise<{ ok: true; courseId: string } | { ok: false; status: number; message: string }> => {
+  const courseId = data.courseId ?? currentCourseId;
+  if (!courseId) return { ok: false, status: 400, message: 'Cours manquant' };
+
+  if (data.courseId) {
+    const course = await prisma.course.findFirst({ where: { id: data.courseId, teacherId }, select: { id: true } });
+    if (!course) return { ok: false, status: 404, message: 'Cours non trouvé' };
+  }
+
+  if (data.classId) {
+    const cls = await prisma.class.findFirst({ where: { id: data.classId, teacherId }, select: { id: true } });
+    if (!cls) return { ok: false, status: 404, message: 'Classe non trouvée' };
+  }
+
+  if (data.moduleId) {
+    const module = await prisma.module.findFirst({
+      where: { id: data.moduleId, course: { teacherId } },
+      select: { courseId: true },
+    });
+    if (!module) return { ok: false, status: 404, message: 'Module non trouvé' };
+    if (module.courseId !== courseId) {
+      return { ok: false, status: 400, message: 'Le module ne correspond pas au cours de la séance' };
+    }
+  }
+
+  return { ok: true, courseId };
+};
 
 export const getSessions = async (req: AuthRequest, res: Response): Promise<void> => {
   const teacherId = req.userId as string;
@@ -41,8 +74,13 @@ export const getSession = async (req: AuthRequest, res: Response): Promise<void>
 };
 
 export const createSession = async (req: AuthRequest, res: Response): Promise<void> => {
+  const teacherId = req.userId as string;
   const parsed = sessionSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ message: 'Données invalides' }); return; }
+
+  const relations = await ensureSessionRelations(parsed.data, teacherId);
+  if (!relations.ok) { res.status(relations.status).json({ message: relations.message }); return; }
+
   const session = await prisma.session.create({
     data: { ...parsed.data, date: new Date(parsed.data.date) },
   });
@@ -50,12 +88,29 @@ export const createSession = async (req: AuthRequest, res: Response): Promise<vo
 };
 
 export const updateSession = async (req: AuthRequest, res: Response): Promise<void> => {
+  const teacherId = req.userId as string;
   const parsed = sessionSchema.partial().safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ message: 'Données invalides' }); return; }
+
+  const existing = await prisma.session.findFirst({
+    where: { id: req.params.id, course: { teacherId } },
+    select: { id: true, courseId: true, moduleId: true },
+  });
+  if (!existing) { res.status(404).json({ message: 'Séance non trouvée' }); return; }
+
+  const relations = await ensureSessionRelations(parsed.data, teacherId, existing.courseId);
+  if (!relations.ok) { res.status(relations.status).json({ message: relations.message }); return; }
+
   const { date, ...rest } = parsed.data;
+  const data = {
+    ...rest,
+    ...(date ? { date: new Date(date) } : {}),
+    ...(rest.courseId && rest.courseId !== existing.courseId && rest.moduleId === undefined ? { moduleId: null } : {}),
+  };
+
   await prisma.session.update({
     where: { id: req.params.id },
-    data: { ...rest, ...(date ? { date: new Date(date) } : {}) },
+    data,
   });
   res.json({ message: 'Séance mise à jour' });
 };

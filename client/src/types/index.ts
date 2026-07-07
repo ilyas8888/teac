@@ -40,8 +40,25 @@ export interface Course {
   nom: string;
   matiere: string;
   description?: string;
+  niveau?: string | null;
+  objectifsGeneraux?: string | null;
+  prerequis?: string | null;
+  nbHeures?: number | null;
+  publicCible?: string | null;
+  couleur?: string | null;
   teacherId: string;
+  modules?: Module[];
   _count?: { sessions: number; evaluations: number };
+}
+
+export interface Module {
+  id: string;
+  titre: string;
+  ordre: number;
+  courseId: string;
+  sessions?: Session[];
+  createdAt: string;
+  _count?: { sessions: number };
 }
 
 export interface Session {
@@ -54,6 +71,8 @@ export interface Session {
   content?: unknown; // BlockNote document (array of blocks) stored as JSON
   courseId: string;
   classId: string;
+  moduleId?: string | null;
+  module?: Module | null;
   course?: { nom: string; matiere?: string };
   class?: { nom: string; groupe?: string };
   resources?: Resource[];

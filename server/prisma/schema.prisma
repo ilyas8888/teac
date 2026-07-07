@@ -66,6 +66,13 @@ model Course {
   nom         String
   matiere     String
   description String?
+  niveau            String?
+  objectifsGeneraux String?
+  prerequis         String?
+  nbHeures          Int?
+  publicCible       String?
+  couleur           String?
+  modules           Module[]
   teacherId   String
   teacher     User     @relation(fields: [teacherId], references: [id])
   createdAt   DateTime @default(now())
@@ -73,6 +80,18 @@ model Course {
 
   sessions    Session[]
   evaluations Evaluation[]
+}
+
+model Module {
+  id        String    @id @default(cuid())
+  titre     String
+  ordre     Int       @default(0)
+  courseId  String
+  course    Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  sessions  Session[]
+  createdAt DateTime  @default(now())
+
+  @@index([courseId])
 }
 
 model Session {
@@ -87,6 +106,8 @@ model Session {
   course      Course   @relation(fields: [courseId], references: [id])
   classId     String
   class       Class    @relation(fields: [classId], references: [id])
+  moduleId    String?
+  module      Module?  @relation(fields: [moduleId], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
