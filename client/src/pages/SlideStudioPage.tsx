@@ -24,6 +24,7 @@ type SlideStudioAction =
   | { type: 'UPDATE_BLOCK_TEXT'; text: string }
   | { type: 'UPDATE_BLOCK_STYLE'; style: BlockStyle }
   | { type: 'UPDATE_SLIDE_STYLE'; backgroundColor?: string }
+  | { type: 'INSERT_IMAGE_BLOCK'; url: string }
   | { type: 'MOVE_BLOCK_UP'; blockId: string }
   | { type: 'MOVE_BLOCK_DOWN'; blockId: string }
   | { type: 'MOVE_BLOCK_TO_SLIDE'; blockId: string; direction: -1 | 1 };
@@ -70,6 +71,26 @@ function reducer(state: SlideStudioState, action: SlideStudioAction): SlideStudi
         return { ...block, style: { ...block.style, ...action.style } };
       }),
     });
+  }
+
+  if (action.type === 'INSERT_IMAGE_BLOCK') {
+    const imageBlock = {
+      id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `image-${Date.now()}`,
+      type: 'image',
+      props: { url: action.url },
+      content: undefined,
+      children: [],
+      style: { textAlign: 'center' as const },
+      editableText: '',
+    };
+
+    return {
+      ...updateSlide(state, slideIndex, {
+        ...currentSlide,
+        blocks: [...currentSlide.blocks, imageBlock],
+      }),
+      selectedBlockId: imageBlock.id,
+    };
   }
 
   if (action.type === 'MOVE_BLOCK_UP' || action.type === 'MOVE_BLOCK_DOWN') {
@@ -199,6 +220,7 @@ export default function SlideStudioPage() {
           onMoveDown={(blockId) => dispatch({ type: 'MOVE_BLOCK_DOWN', blockId })}
           onMoveToPrev={(blockId) => dispatch({ type: 'MOVE_BLOCK_TO_SLIDE', blockId, direction: -1 })}
           onMoveToNext={(blockId) => dispatch({ type: 'MOVE_BLOCK_TO_SLIDE', blockId, direction: 1 })}
+          onInsertImage={(url) => dispatch({ type: 'INSERT_IMAGE_BLOCK', url })}
           onUpdateSlideStyle={(backgroundColor) => dispatch({ type: 'UPDATE_SLIDE_STYLE', backgroundColor })}
           onSelectSlide={(index) => dispatch({ type: 'SELECT_SLIDE', index })}
         />

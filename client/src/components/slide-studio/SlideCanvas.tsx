@@ -1,5 +1,7 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronLeft, ChevronRight, Image as ImageIcon, X } from 'lucide-react';
 import EditableBlockItem from './EditableBlockItem';
+import ImageUpload from '../ImageUpload';
 import type { EditableSlide } from '../../lib/slideUtils';
 import { getAutoContrastColor } from '../../lib/slideUtils';
 
@@ -13,12 +15,14 @@ interface SlideCanvasProps {
   onMoveDown: (blockId: string) => void;
   onMoveToPrev: (blockId: string) => void;
   onMoveToNext: (blockId: string) => void;
+  onInsertImage: (url: string) => void;
   onUpdateSlideStyle: (backgroundColor?: string) => void;
   onSelectSlide: (index: number) => void;
 }
 
 export default function SlideCanvas(props: SlideCanvasProps) {
-  const { slide, slideIndex, totalSlides, selectedBlockId, onSelectBlock, onMoveUp, onMoveDown, onMoveToPrev, onMoveToNext, onUpdateSlideStyle, onSelectSlide } = props;
+  const { slide, slideIndex, totalSlides, selectedBlockId, onSelectBlock, onMoveUp, onMoveDown, onMoveToPrev, onMoveToNext, onInsertImage, onUpdateSlideStyle, onSelectSlide } = props;
+  const [showImageUpload, setShowImageUpload] = useState(false);
   const backgroundColor = slide.slideStyle.backgroundColor || '#ffffff';
   const color = getAutoContrastColor(backgroundColor);
 
@@ -34,15 +38,51 @@ export default function SlideCanvas(props: SlideCanvasProps) {
             <ChevronRight size={18} />
           </button>
         </div>
-        <label className="flex items-center gap-2 text-xs font-medium text-gray-500">
-          Fond
-          <input
-            type="color"
-            value={backgroundColor}
-            onChange={(event) => onUpdateSlideStyle(event.target.value)}
-            className="h-8 w-10 rounded border border-gray-200 bg-white p-1"
-          />
-        </label>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowImageUpload((open) => !open)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:border-gray-300 hover:text-gray-900"
+            >
+              <ImageIcon size={15} /> Image
+            </button>
+            {showImageUpload && (
+              <div className="absolute right-0 top-10 z-20 w-72 rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-900">Ajouter une image</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowImageUpload(false)}
+                    className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                    aria-label="Fermer"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+                <ImageUpload
+                  value={null}
+                  label=""
+                  aspectRatio="video"
+                  onChange={(url) => {
+                    if (!url) return;
+                    onInsertImage(url);
+                    setShowImageUpload(false);
+                  }}
+                />
+              </div>
+            )}
+          </div>
+          <label className="flex items-center gap-2 text-xs font-medium text-gray-500">
+            Fond
+            <input
+              type="color"
+              value={backgroundColor}
+              onChange={(event) => onUpdateSlideStyle(event.target.value)}
+              className="h-8 w-10 rounded border border-gray-200 bg-white p-1"
+            />
+          </label>
+        </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto p-6">
