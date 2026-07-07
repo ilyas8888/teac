@@ -96,7 +96,14 @@ export default function CoursesPage() {
               <div key={course.id}
                 onClick={() => navigate(`/courses/${course.id}`)}
                 className="group bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer overflow-hidden">
-                <div className={course.couleur ? 'h-1.5' : `h-1.5 bg-gradient-to-r ${theme.gradient}`} style={accentStyle} />
+                {course.image ? (
+                  <div className="relative h-24 w-full overflow-hidden rounded-t-xl">
+                    <img src={course.image} alt="" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20" />
+                  </div>
+                ) : (
+                  <div className={course.couleur ? 'h-1.5' : `h-1.5 bg-gradient-to-r ${theme.gradient}`} style={accentStyle} />
+                )}
                 <div className="p-5">
                   <div className="flex items-start justify-between mb-3">
                     <div className={`${course.couleur ? '' : theme.bg} p-2.5 rounded-lg`} style={course.couleur ? { backgroundColor: `${course.couleur}1A` } : undefined}>

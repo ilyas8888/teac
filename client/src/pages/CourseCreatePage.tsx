@@ -5,6 +5,7 @@ import { ArrowLeft, BookOpen, Check, Clock, GraduationCap, Palette } from 'lucid
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../services/api';
 import type { Course, UserSettings } from '../types';
+import ImageUpload from '../components/ImageUpload';
 
 type CourseForm = {
   nom: string;
@@ -16,6 +17,7 @@ type CourseForm = {
   nbHeures: string;
   publicCible: string;
   couleur: string;
+  image: string;
 };
 
 const colorSwatches = ['#4f46e5', '#059669', '#d97706', '#e11d48', '#0284c7', '#7c3aed', '#0f766e', '#c026d3'];
@@ -32,6 +34,7 @@ const emptyForm: CourseForm = {
   nbHeures: '',
   publicCible: '',
   couleur: colorSwatches[0],
+  image: '',
 };
 
 function toPayload(form: CourseForm) {
@@ -45,6 +48,7 @@ function toPayload(form: CourseForm) {
     nbHeures: form.nbHeures ? Number(form.nbHeures) : null,
     publicCible: form.publicCible.trim() || null,
     couleur: form.couleur || null,
+    image: form.image || null,
   };
 }
 
@@ -78,6 +82,7 @@ export default function CourseCreatePage() {
       nbHeures: course.nbHeures?.toString() || '',
       publicCible: course.publicCible || '',
       couleur: course.couleur || colorSwatches[0],
+      image: course.image || '',
     });
   }, [course]);
 
@@ -175,6 +180,13 @@ export default function CourseCreatePage() {
             <input value={form.publicCible} onChange={(e) => update('publicCible', e.target.value)} className={inputClass} placeholder="Ex: Stagiaires de première année" />
           </Field>
 
+          <ImageUpload
+            label="Image de couverture"
+            value={form.image}
+            onChange={(url) => update('image', url ?? '')}
+            aspectRatio="wide"
+          />
+
           <div>
             <div className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
               <Palette size={15} /> Couleur du cours
@@ -192,7 +204,14 @@ export default function CourseCreatePage() {
         </form>
 
         <aside className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden h-fit">
-          <div className="h-2" style={{ backgroundColor: form.couleur }} />
+          {form.image ? (
+            <div className="relative h-28 w-full overflow-hidden">
+              <img src={form.image} alt="" className="w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/30" />
+            </div>
+          ) : (
+            <div className="h-2" style={{ backgroundColor: form.couleur }} />
+          )}
           <div className="p-5">
             <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white mb-4" style={{ backgroundColor: form.couleur }}>
               <BookOpen size={22} />

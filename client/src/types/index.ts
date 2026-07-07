@@ -46,6 +46,7 @@ export interface Course {
   nbHeures?: number | null;
   publicCible?: string | null;
   couleur?: string | null;
+  image?: string | null;
   teacherId: string;
   modules?: Module[];
   _count?: { sessions: number; evaluations: number };
@@ -55,6 +56,7 @@ export interface Module {
   id: string;
   titre: string;
   ordre: number;
+  image?: string | null;
   courseId: string;
   sessions?: Session[];
   createdAt: string;
@@ -66,6 +68,7 @@ export interface Session {
   titre: string;
   objectifs: string;
   contenu?: string;
+  image?: string | null;
   duree: number;
   date: string;
   content?: unknown; // BlockNote document (array of blocks) stored as JSON

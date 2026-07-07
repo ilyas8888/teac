@@ -8,6 +8,7 @@ const sessionSchema = z.object({
   objectifs: z.string().min(1),
   contenu: z.string().optional(),
   content: z.any().optional(),
+  image: z.string().url().optional().nullable(),
   duree: z.number().int().positive(),
   date: z.string(),
   courseId: z.string().uuid(),

@@ -9,6 +9,7 @@ import {
 import api from '../services/api';
 import type { Course, Session, Class, Resource, Module as CourseModule } from '../types';
 import { courseTheme } from '../lib/courseTheme';
+import ImageUpload from '../components/ImageUpload';
 import {
   sessionStatus, STATUS_META, formatSessionDate, formatShortDate, formatDuration,
 } from '../lib/sessionUtils';
@@ -24,13 +25,14 @@ const RESOURCE_TYPES: { value: Resource['type']; label: string; icon: React.Reac
 const resourceIcon = (type: Resource['type']) =>
   RESOURCE_TYPES.find((t) => t.value === type)?.icon ?? <Paperclip size={14} />;
 
-const emptySession = { titre: '', objectifs: '', contenu: '', duree: 120, date: '', classId: '', moduleId: '' };
+const emptySession = { titre: '', objectifs: '', contenu: '', image: '', duree: 120, date: '', classId: '', moduleId: '' };
 
 type ModuleState = {
   expandedIds: string[];
   menuId: string | null;
   renamingId: string | null;
   draftTitle: string;
+  editingImageId: string | null;
 };
 
 type ModuleAction =
@@ -39,13 +41,16 @@ type ModuleAction =
   | { type: 'startRename'; id: string; title: string }
   | { type: 'setDraftTitle'; title: string }
   | { type: 'stopRename' }
-  | { type: 'expand'; id: string };
+  | { type: 'expand'; id: string }
+  | { type: 'startImageEdit'; id: string }
+  | { type: 'stopImageEdit' };
 
 const initialModuleState: ModuleState = {
   expandedIds: [],
   menuId: null,
   renamingId: null,
   draftTitle: '',
+  editingImageId: null,
 };
 
 function moduleReducer(state: ModuleState, action: ModuleAction): ModuleState {
@@ -70,6 +75,10 @@ function moduleReducer(state: ModuleState, action: ModuleAction): ModuleState {
       return state.expandedIds.includes(action.id)
         ? state
         : { ...state, expandedIds: [...state.expandedIds, action.id] };
+    case 'startImageEdit':
+      return { ...state, editingImageId: action.id, menuId: null };
+    case 'stopImageEdit':
+      return { ...state, editingImageId: null };
     default:
       return state;
   }
@@ -122,12 +131,18 @@ export default function CourseDetailPage() {
       courseId: id,
       duree: Number(data.duree),
       moduleId: data.moduleId || null,
+      image: data.image || null,
     }),
     onSuccess: () => { invalidate(); closeForm(); },
   });
   const update = useMutation({
     mutationFn: ({ sid, data }: { sid: string; data: typeof form }) =>
-      api.put(`/sessions/${sid}`, { ...data, duree: Number(data.duree), moduleId: data.moduleId || null }),
+      api.put(`/sessions/${sid}`, {
+        ...data,
+        duree: Number(data.duree),
+        moduleId: data.moduleId || null,
+        image: data.image || null,
+      }),
     onSuccess: () => { invalidate(); closeForm(); },
   });
   const remove = useMutation({
@@ -148,6 +163,15 @@ export default function CourseDetailPage() {
     mutationFn: ({ moduleId, titre }: { moduleId: string; titre: string }) => api.put(`/modules/${moduleId}`, { titre }),
     onSuccess: () => {
       dispatchModule({ type: 'stopRename' });
+      invalidate();
+    },
+  });
+
+  const updateModuleImage = useMutation({
+    mutationFn: ({ moduleId, image }: { moduleId: string; image: string | null }) =>
+      api.put(`/modules/${moduleId}`, { image }),
+    onSuccess: () => {
+      dispatchModule({ type: 'stopImageEdit' });
       invalidate();
     },
   });
@@ -194,6 +218,7 @@ export default function CourseDetailPage() {
       titre: session.titre,
       objectifs: session.objectifs,
       contenu: session.contenu || '',
+      image: session.image || '',
       duree: session.duree,
       date: session.date.slice(0, 16),
       classId: session.classId,
@@ -264,7 +289,14 @@ export default function CourseDetailPage() {
       </button>
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-6">
-        <div className={course.couleur ? 'h-2' : `h-2 bg-gradient-to-r ${theme.gradient}`} style={accentStyle} />
+        {course.image ? (
+          <div className="relative h-36 w-full overflow-hidden">
+            <img src={course.image} alt="" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/40" />
+          </div>
+        ) : (
+          <div className={course.couleur ? 'h-2' : `h-2 bg-gradient-to-r ${theme.gradient}`} style={accentStyle} />
+        )}
         <div className="p-6">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-4">
@@ -354,6 +386,7 @@ export default function CourseDetailPage() {
               onDeleteSession={(sessionId) => remove.mutate(sessionId)}
               onOpenContent={(session) => navigate(`/courses/${id}/sessions/${session.id}`)}
               onMoveSession={(sessionId, moduleId) => moveSession.mutate({ sessionId, moduleId })}
+              onImageChange={(image) => updateModuleImage.mutate({ moduleId: module.id, image })}
             />
           ))}
 
@@ -452,6 +485,13 @@ export default function CourseDetailPage() {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="Plan de la séance, activités, points clés..." />
               </div>
+
+              <ImageUpload
+                label="Image de la séance"
+                value={form.image}
+                onChange={(url) => setForm({ ...form, image: url ?? '' })}
+                aspectRatio="wide"
+              />
             </div>
 
             <div className="flex gap-3 mt-6">
@@ -482,7 +522,7 @@ function Metric({ icon, value, label }: { icon: React.ReactNode; value: React.Re
   );
 }
 
-function ModuleRow({ module, sessions, modules, index, total, state, dispatch, expandedSession, setExpandedSession, onCreateSession, onRename, onDelete, onMove, onEditSession, onDeleteSession, onOpenContent, onMoveSession }: {
+function ModuleRow({ module, sessions, modules, index, total, state, dispatch, expandedSession, setExpandedSession, onCreateSession, onRename, onDelete, onMove, onEditSession, onDeleteSession, onOpenContent, onMoveSession, onImageChange }: {
   module: CourseModule;
   sessions: Session[];
   modules: CourseModule[];
@@ -500,13 +540,21 @@ function ModuleRow({ module, sessions, modules, index, total, state, dispatch, e
   onDeleteSession: (id: string) => void;
   onOpenContent: (session: Session) => void;
   onMoveSession: (sessionId: string, moduleId: string | null) => void;
+  onImageChange: (image: string | null) => void;
 }) {
   const isExpanded = state.expandedIds.includes(module.id);
   const isRenaming = state.renamingId === module.id;
+  const isEditingImage = state.editingImageId === module.id;
   const menuOpen = state.menuId === module.id;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-visible">
+      {module.image && !isEditingImage && (
+        <div className="relative h-24 w-full overflow-hidden rounded-t-xl">
+          <img src={module.image} alt="" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/30" />
+        </div>
+      )}
       <div className="flex items-center gap-3 p-4">
         <button onClick={() => dispatch({ type: 'toggle', id: module.id })}
           className="text-gray-400 hover:text-gray-700">
@@ -556,9 +604,13 @@ function ModuleRow({ module, sessions, modules, index, total, state, dispatch, e
               <MoreVertical size={16} />
             </button>
             {menuOpen && (
-              <div className="absolute right-0 top-8 z-10 w-44 bg-white border border-gray-200 rounded-lg shadow-lg py-1">
+              <div className="absolute right-0 top-8 z-10 w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-1">
                 <button onClick={() => dispatch({ type: 'startRename', id: module.id, title: module.titre })}
                   className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Renommer</button>
+                <button onClick={() => dispatch({ type: 'startImageEdit', id: module.id })}
+                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                  {module.image ? 'Modifier l\'image' : 'Ajouter une image'}
+                </button>
                 <button onClick={onDelete}
                   className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50">Supprimer</button>
               </div>
@@ -566,6 +618,19 @@ function ModuleRow({ module, sessions, modules, index, total, state, dispatch, e
           </div>
         )}
       </div>
+
+      {isEditingImage && (
+        <div className="border-t border-gray-100 px-4 pb-4">
+          <ImageUpload
+            label=""
+            value={module.image}
+            onChange={(url) => onImageChange(url)}
+            aspectRatio="wide"
+          />
+          <button onClick={() => dispatch({ type: 'stopImageEdit' })}
+            className="mt-2 text-xs text-gray-500 hover:text-gray-700">Fermer</button>
+        </div>
+      )}
 
       {isExpanded && (
         <div className="border-t border-gray-100 p-4 space-y-3">
@@ -628,6 +693,9 @@ function SessionCard({ session, muted, isOpen, modules, onToggle, onEdit, onDele
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {session.image && !isOpen && (
+            <img src={session.image} alt="" className="h-8 w-12 object-cover rounded-md border border-gray-100" />
+          )}
           {hasContent && (
             <span className="text-xs text-indigo-500 flex items-center gap-1" title="Contenu pédagogique rédigé"><FileText size={12} /></span>
           )}
@@ -640,6 +708,12 @@ function SessionCard({ session, muted, isOpen, modules, onToggle, onEdit, onDele
 
       {isOpen && (
         <div className="px-4 pb-4 border-t border-gray-100 pt-4 space-y-4">
+          {session.image && (
+            <div className="rounded-xl overflow-hidden h-36 w-full">
+              <img src={session.image} alt="" className="w-full h-full object-cover" />
+            </div>
+          )}
+
           <div className="text-xs text-gray-400 flex items-center gap-1.5">
             <Calendar size={12} /> {formatSessionDate(session.date)}
           </div>

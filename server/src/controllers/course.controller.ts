@@ -13,6 +13,7 @@ const courseSchema = z.object({
   nbHeures: z.number().int().positive().optional().nullable(),
   publicCible: z.string().optional().nullable(),
   couleur: z.string().optional().nullable(),
+  image: z.string().url().optional().nullable(),
 });
 
 export const getCourses = async (req: AuthRequest, res: Response): Promise<void> => {

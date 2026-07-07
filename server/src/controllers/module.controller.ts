@@ -6,6 +6,7 @@ import { AuthRequest } from '../middleware/auth.middleware';
 const moduleSchema = z.object({
   titre: z.string().min(1),
   ordre: z.number().int().optional(),
+  image: z.string().url().optional().nullable(),
   courseId: z.string().uuid(),
 });
 
