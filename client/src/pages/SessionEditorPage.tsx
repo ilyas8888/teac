@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Clock, Users, Calendar, Check, Loader2, Target, Presentation, Settings2 } from 'lucide-react';
+import { ArrowLeft, Clock, Users, Calendar, Check, Loader2, Target, Presentation, Settings2, Layers } from 'lucide-react';
 import api from '../services/api';
 import type { Session } from '../types';
 import SessionEditor from '../components/SessionEditor';
@@ -79,6 +79,13 @@ export default function SessionEditorPage() {
                 onClick={() => navigate(`/courses/${courseId}/sessions/${sessionId}/customize`)}
               >
                 <Settings2 size={15} /> Personnaliser
+              </button>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-purple-700"
+                onClick={() => navigate(`/courses/${courseId}/sessions/${sessionId}/slide-studio`)}
+              >
+                <Layers size={15} /> Studio
               </button>
             </div>
           </div>
