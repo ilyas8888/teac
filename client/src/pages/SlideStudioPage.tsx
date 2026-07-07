@@ -1,13 +1,13 @@
-import { useEffect, useReducer } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Download, Eye } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Download, Eye, Save, Check } from 'lucide-react';
 import SlideNavigator from '../components/slide-studio/SlideNavigator';
 import SlideCanvas from '../components/slide-studio/SlideCanvas';
 import PropertiesPanel from '../components/slide-studio/PropertiesPanel';
 import { downloadRevealHtml, openRevealPreview } from '../lib/slideExporter';
 import type { BlockStyle, EditableBlock, EditableSlide } from '../lib/slideUtils';
-import { groupBlocksIntoEditableSlides } from '../lib/slideUtils';
+import { groupBlocksIntoEditableSlides, editableSlidesToBlocks } from '../lib/slideUtils';
 import api from '../services/api';
 import type { Session } from '../types';
 
@@ -201,13 +201,24 @@ function defaultTextForBlock(blockType: string, props: Record<string, unknown>) 
 export default function SlideStudioPage() {
   const { courseId, sessionId } = useParams<{ courseId: string; sessionId: string }>();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [state, dispatch] = useReducer(reducer, initialState);
+  const [savedOk, setSavedOk] = useState(false);
 
   const { data: session, isLoading } = useQuery<Session>({
     queryKey: ['session', sessionId],
     queryFn: () => api.get(`/sessions/${sessionId}`).then((response) => response.data),
     enabled: !!sessionId,
     staleTime: 30_000,
+  });
+
+  const save = useMutation({
+    mutationFn: () => api.put(`/sessions/${sessionId}`, { content: editableSlidesToBlocks(state.slides) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['session', sessionId] });
+      setSavedOk(true);
+      setTimeout(() => setSavedOk(false), 2000);
+    },
   });
 
   useEffect(() => {
@@ -255,6 +266,14 @@ export default function SlideStudioPage() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 transition hover:border-gray-300 hover:text-gray-900"
           >
             <Eye size={15} /> Aperçu
+          </button>
+          <button
+            type="button"
+            onClick={() => save.mutate()}
+            disabled={save.isPending}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white transition disabled:opacity-60 ${savedOk ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+          >
+            {savedOk ? <><Check size={15} /> Enregistré</> : save.isPending ? <><Save size={15} /> Sauvegarde…</> : <><Save size={15} /> Enregistrer</>}
           </button>
           <button
             type="button"

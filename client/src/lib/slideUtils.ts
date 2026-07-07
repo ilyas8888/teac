@@ -123,10 +123,11 @@ export function groupBlocksIntoEditableSlides(rawContent: unknown, existing?: Ed
   blocks.forEach((block, index) => {
     if (isSlideHeading(block) && currentBlocks.length > 0) {
       const existingSlide = existing?.[slides.length];
+      const bg = currentBlocks[0]?.props?._slideBackground;
       slides.push({
         id: existingSlide?.id ?? `slide-${slides.length + 1}`,
         blocks: currentBlocks,
-        slideStyle: existingSlide?.slideStyle ?? {},
+        slideStyle: existingSlide?.slideStyle ?? (typeof bg === 'string' ? { backgroundColor: bg } : {}),
       });
       currentBlocks = [];
     }
@@ -136,14 +137,46 @@ export function groupBlocksIntoEditableSlides(rawContent: unknown, existing?: Ed
 
   if (currentBlocks.length > 0) {
     const existingSlide = existing?.[slides.length];
+    const bg = currentBlocks[0]?.props?._slideBackground;
     slides.push({
       id: existingSlide?.id ?? `slide-${slides.length + 1}`,
       blocks: currentBlocks,
-      slideStyle: existingSlide?.slideStyle ?? {},
+      slideStyle: existingSlide?.slideStyle ?? (typeof bg === 'string' ? { backgroundColor: bg } : {}),
     });
   }
 
   return slides.length > 0 ? slides : [{ id: existing?.[0]?.id ?? 'slide-1', blocks: [], slideStyle: existing?.[0]?.slideStyle ?? {} }];
+}
+
+export function editableSlidesToBlocks(slides: EditableSlide[]): RawBlock[] {
+  const blocks: RawBlock[] = [];
+
+  slides.forEach((slide) => {
+    slide.blocks.forEach((block, blockIndex) => {
+      const props: AnyRecord = { ...block.props };
+
+      if (Object.keys(block.style).length > 0) props.style = block.style;
+
+      if (blockIndex === 0 && slide.slideStyle.backgroundColor) {
+        props._slideBackground = slide.slideStyle.backgroundColor;
+      } else {
+        delete props._slideBackground;
+      }
+
+      let content: unknown;
+      if (block.content !== undefined) {
+        content = block.content;
+      } else if (block.editableText) {
+        content = [{ type: 'text', text: block.editableText }];
+      } else {
+        content = [];
+      }
+
+      blocks.push({ id: block.id, type: block.type, props, content, children: block.children });
+    });
+  });
+
+  return blocks;
 }
 
 export function getAutoContrastColor(hexBg: string) {
