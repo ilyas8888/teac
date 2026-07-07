@@ -6,7 +6,7 @@ import SlideNavigator from '../components/slide-studio/SlideNavigator';
 import SlideCanvas from '../components/slide-studio/SlideCanvas';
 import PropertiesPanel from '../components/slide-studio/PropertiesPanel';
 import { downloadRevealHtml, openRevealPreview } from '../lib/slideExporter';
-import type { BlockStyle, EditableSlide } from '../lib/slideUtils';
+import type { BlockStyle, EditableBlock, EditableSlide } from '../lib/slideUtils';
 import { groupBlocksIntoEditableSlides } from '../lib/slideUtils';
 import api from '../services/api';
 import type { Session } from '../types';
@@ -25,6 +25,7 @@ type SlideStudioAction =
   | { type: 'UPDATE_BLOCK_STYLE'; style: BlockStyle }
   | { type: 'UPDATE_SLIDE_STYLE'; backgroundColor?: string }
   | { type: 'INSERT_IMAGE_BLOCK'; url: string }
+  | { type: 'INSERT_LINK_BLOCK'; url: string; title?: string }
   | { type: 'MOVE_BLOCK_UP'; blockId: string }
   | { type: 'MOVE_BLOCK_DOWN'; blockId: string }
   | { type: 'MOVE_BLOCK_TO_SLIDE'; blockId: string; direction: -1 | 1 };
@@ -90,6 +91,26 @@ function reducer(state: SlideStudioState, action: SlideStudioAction): SlideStudi
         blocks: [...currentSlide.blocks, imageBlock],
       }),
       selectedBlockId: imageBlock.id,
+    };
+  }
+
+  if (action.type === 'INSERT_LINK_BLOCK') {
+    const linkBlock: EditableBlock = {
+      id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `link-${Date.now()}`,
+      type: 'linkCard',
+      props: { url: action.url, title: action.title ?? '' },
+      content: undefined,
+      children: [],
+      style: {},
+      editableText: action.title || action.url,
+    };
+
+    return {
+      ...updateSlide(state, slideIndex, {
+        ...currentSlide,
+        blocks: [...currentSlide.blocks, linkBlock],
+      }),
+      selectedBlockId: linkBlock.id,
     };
   }
 
@@ -221,6 +242,7 @@ export default function SlideStudioPage() {
           onMoveToPrev={(blockId) => dispatch({ type: 'MOVE_BLOCK_TO_SLIDE', blockId, direction: -1 })}
           onMoveToNext={(blockId) => dispatch({ type: 'MOVE_BLOCK_TO_SLIDE', blockId, direction: 1 })}
           onInsertImage={(url) => dispatch({ type: 'INSERT_IMAGE_BLOCK', url })}
+          onInsertLink={(url, title) => dispatch({ type: 'INSERT_LINK_BLOCK', url, title })}
           onUpdateSlideStyle={(backgroundColor) => dispatch({ type: 'UPDATE_SLIDE_STYLE', backgroundColor })}
           onSelectSlide={(index) => dispatch({ type: 'SELECT_SLIDE', index })}
         />

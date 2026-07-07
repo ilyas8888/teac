@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Image as ImageIcon, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Image as ImageIcon, Link, X } from 'lucide-react';
 import EditableBlockItem from './EditableBlockItem';
 import ImageUpload from '../ImageUpload';
 import type { EditableSlide } from '../../lib/slideUtils';
@@ -16,13 +16,17 @@ interface SlideCanvasProps {
   onMoveToPrev: (blockId: string) => void;
   onMoveToNext: (blockId: string) => void;
   onInsertImage: (url: string) => void;
+  onInsertLink: (url: string, title?: string) => void;
   onUpdateSlideStyle: (backgroundColor?: string) => void;
   onSelectSlide: (index: number) => void;
 }
 
 export default function SlideCanvas(props: SlideCanvasProps) {
-  const { slide, slideIndex, totalSlides, selectedBlockId, onSelectBlock, onMoveUp, onMoveDown, onMoveToPrev, onMoveToNext, onInsertImage, onUpdateSlideStyle, onSelectSlide } = props;
+  const { slide, slideIndex, totalSlides, selectedBlockId, onSelectBlock, onMoveUp, onMoveDown, onMoveToPrev, onMoveToNext, onInsertImage, onInsertLink, onUpdateSlideStyle, onSelectSlide } = props;
   const [showImageUpload, setShowImageUpload] = useState(false);
+  const [showLinkForm, setShowLinkForm] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [linkTitle, setLinkTitle] = useState('');
   const backgroundColor = slide.slideStyle.backgroundColor || '#ffffff';
   const color = getAutoContrastColor(backgroundColor);
 
@@ -39,6 +43,52 @@ export default function SlideCanvas(props: SlideCanvasProps) {
           </button>
         </div>
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowLinkForm((open) => !open)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:border-gray-300 hover:text-gray-900"
+            >
+              <Link size={15} /> Lien
+            </button>
+            {showLinkForm && (
+              <form
+                className="flex items-center gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const url = linkUrl.trim();
+                  const title = linkTitle.trim();
+                  if (!url) return;
+                  onInsertLink(url, title || undefined);
+                  setLinkUrl('');
+                  setLinkTitle('');
+                  setShowLinkForm(false);
+                }}
+              >
+                <input
+                  type="url"
+                  required
+                  value={linkUrl}
+                  onChange={(event) => setLinkUrl(event.target.value)}
+                  placeholder="https://example.com"
+                  className="h-8 w-48 rounded-lg border border-gray-200 px-2 text-sm text-gray-800 outline-none transition focus:border-purple-300 focus:ring-2 focus:ring-purple-100"
+                />
+                <input
+                  type="text"
+                  value={linkTitle}
+                  onChange={(event) => setLinkTitle(event.target.value)}
+                  placeholder="Titre"
+                  className="h-8 w-36 rounded-lg border border-gray-200 px-2 text-sm text-gray-800 outline-none transition focus:border-purple-300 focus:ring-2 focus:ring-purple-100"
+                />
+                <button
+                  type="submit"
+                  className="rounded-lg bg-purple-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-purple-700"
+                >
+                  Insérer
+                </button>
+              </form>
+            )}
+          </div>
           <div className="relative">
             <button
               type="button"
