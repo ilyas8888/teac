@@ -1,257 +1,64 @@
-import { useEffect, useReducer, useState } from 'react';
+import { useEffect, useMemo, useState, type ComponentType } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Download, Eye, Save, Check } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, Check, Download, Eye, Save } from 'lucide-react';
+import SessionEditor from '../components/SessionEditor';
 import SlideNavigator from '../components/slide-studio/SlideNavigator';
-import SlideCanvas from '../components/slide-studio/SlideCanvas';
-import PropertiesPanel from '../components/slide-studio/PropertiesPanel';
+import { uploadToCloudinary } from '../lib/cloudinary';
 import { downloadRevealHtml, openRevealPreview } from '../lib/slideExporter';
-import type { BlockStyle, EditableBlock, EditableSlide } from '../lib/slideUtils';
-import { groupBlocksIntoEditableSlides, editableSlidesToBlocks } from '../lib/slideUtils';
+import { groupBlocksIntoEditableSlides, type RawBlock } from '../lib/slideUtils';
 import api from '../services/api';
 import type { Session } from '../types';
+import type { TeacBlock, TeacPartialBlock } from '../lib/blocknoteSchema';
 
-interface SlideStudioState {
-  slides: EditableSlide[];
-  selectedSlideIndex: number;
-  selectedBlockId?: string;
+interface SessionEditorWithUploadProps {
+  initialContent?: TeacPartialBlock[];
+  editable?: boolean;
+  onChange?: (blocks: TeacBlock[]) => void;
+  uploadFile?: (file: File) => Promise<string>;
 }
 
-type SlideStudioAction =
-  | { type: 'INIT'; slides: EditableSlide[] }
-  | { type: 'SELECT_SLIDE'; index: number }
-  | { type: 'SELECT_BLOCK'; blockId?: string }
-  | { type: 'UPDATE_BLOCK_TEXT'; text: string }
-  | { type: 'UPDATE_BLOCK_STYLE'; style: BlockStyle }
-  | { type: 'UPDATE_SLIDE_STYLE'; backgroundColor?: string }
-  | { type: 'ADD_SLIDE' }
-  | { type: 'DELETE_SLIDE' }
-  | { type: 'INSERT_BLOCK'; blockType: string; props?: Record<string, unknown> }
-  | { type: 'INSERT_IMAGE_BLOCK'; url: string }
-  | { type: 'INSERT_LINK_BLOCK'; url: string; title?: string }
-  | { type: 'DELETE_BLOCK'; blockId: string }
-  | { type: 'MOVE_BLOCK_UP'; blockId: string }
-  | { type: 'MOVE_BLOCK_DOWN'; blockId: string }
-  | { type: 'MOVE_BLOCK_TO_SLIDE'; blockId: string; direction: -1 | 1 };
+const StudioSessionEditor = SessionEditor as ComponentType<SessionEditorWithUploadProps>;
 
-const initialState: SlideStudioState = {
-  slides: [],
-  selectedSlideIndex: 0,
-  selectedBlockId: undefined,
-};
-
-function reducer(state: SlideStudioState, action: SlideStudioAction): SlideStudioState {
-  if (action.type === 'INIT') {
-    return {
-      slides: action.slides,
-      selectedSlideIndex: 0,
-      selectedBlockId: action.slides[0]?.blocks[0]?.id,
-    };
-  }
-
-  if (action.type === 'SELECT_SLIDE') {
-    const slide = state.slides[action.index];
-    return { ...state, selectedSlideIndex: action.index, selectedBlockId: slide?.blocks[0]?.id };
-  }
-
-  if (action.type === 'SELECT_BLOCK') return { ...state, selectedBlockId: action.blockId };
-
-  if (action.type === 'ADD_SLIDE') {
-    const slideIndex = Math.min(state.selectedSlideIndex, state.slides.length - 1);
-    const insertIndex = slideIndex + 1;
-    const slide = createEditableSlide();
-
-    return {
-      slides: [...state.slides.slice(0, insertIndex), slide, ...state.slides.slice(insertIndex)],
-      selectedSlideIndex: insertIndex,
-      selectedBlockId: undefined,
-    };
-  }
-
-  if (action.type === 'DELETE_SLIDE') {
-    if (state.slides.length <= 1) return state;
-
-    const slides = state.slides.filter((_, index) => index !== state.selectedSlideIndex);
-    const selectedSlideIndex = Math.min(state.selectedSlideIndex, slides.length - 1);
-    return {
-      slides,
-      selectedSlideIndex,
-      selectedBlockId: slides[selectedSlideIndex]?.blocks[0]?.id,
-    };
-  }
-
-  const slideIndex = state.selectedSlideIndex;
-  const currentSlide = state.slides[slideIndex];
-  if (!currentSlide) return state;
-
-  if (action.type === 'UPDATE_SLIDE_STYLE') {
-    return updateSlide(state, slideIndex, {
-      ...currentSlide,
-      slideStyle: { backgroundColor: action.backgroundColor },
-    });
-  }
-
-  if (action.type === 'UPDATE_BLOCK_TEXT' || action.type === 'UPDATE_BLOCK_STYLE') {
-    return updateSlide(state, slideIndex, {
-      ...currentSlide,
-      blocks: currentSlide.blocks.map((block) => {
-        if (block.id !== state.selectedBlockId) return block;
-        if (action.type === 'UPDATE_BLOCK_TEXT') return { ...block, editableText: action.text };
-        return { ...block, style: { ...block.style, ...action.style } };
-      }),
-    });
-  }
-
-  if (action.type === 'INSERT_BLOCK') {
-    const block = createEditableBlock(action.blockType, action.props);
-
-    return {
-      ...updateSlide(state, slideIndex, {
-        ...currentSlide,
-        blocks: [...currentSlide.blocks, block],
-      }),
-      selectedBlockId: block.id,
-    };
-  }
-
-  if (action.type === 'INSERT_IMAGE_BLOCK') {
-    const imageBlock = {
-      id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `image-${Date.now()}`,
-      type: 'image',
-      props: { url: action.url },
-      content: undefined,
-      children: [],
-      style: { textAlign: 'center' as const },
-      editableText: '',
-    };
-
-    return {
-      ...updateSlide(state, slideIndex, {
-        ...currentSlide,
-        blocks: [...currentSlide.blocks, imageBlock],
-      }),
-      selectedBlockId: imageBlock.id,
-    };
-  }
-
-  if (action.type === 'INSERT_LINK_BLOCK') {
-    const linkBlock: EditableBlock = {
-      id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `link-${Date.now()}`,
-      type: 'linkCard',
-      props: { url: action.url, title: action.title ?? '' },
-      content: undefined,
-      children: [],
-      style: {},
-      editableText: action.title || action.url,
-    };
-
-    return {
-      ...updateSlide(state, slideIndex, {
-        ...currentSlide,
-        blocks: [...currentSlide.blocks, linkBlock],
-      }),
-      selectedBlockId: linkBlock.id,
-    };
-  }
-
-  if (action.type === 'DELETE_BLOCK') {
-    const blockIndex = currentSlide.blocks.findIndex((block) => block.id === action.blockId);
-    if (blockIndex < 0) return state;
-
-    const blocks = currentSlide.blocks.filter((block) => block.id !== action.blockId);
-    return {
-      ...updateSlide(state, slideIndex, { ...currentSlide, blocks }),
-      selectedBlockId: state.selectedBlockId === action.blockId
-        ? blocks[Math.min(blockIndex, blocks.length - 1)]?.id
-        : state.selectedBlockId,
-    };
-  }
-
-  if (action.type === 'MOVE_BLOCK_UP' || action.type === 'MOVE_BLOCK_DOWN') {
-    const blockIndex = currentSlide.blocks.findIndex((block) => block.id === action.blockId);
-    const targetIndex = action.type === 'MOVE_BLOCK_UP' ? blockIndex - 1 : blockIndex + 1;
-    if (blockIndex < 0 || targetIndex < 0 || targetIndex >= currentSlide.blocks.length) return state;
-
-    const blocks = [...currentSlide.blocks];
-    const [movedBlock] = blocks.splice(blockIndex, 1);
-    blocks.splice(targetIndex, 0, movedBlock);
-    return updateSlide(state, slideIndex, { ...currentSlide, blocks });
-  }
-
-  if (action.type === 'MOVE_BLOCK_TO_SLIDE') {
-    const targetSlideIndex = slideIndex + action.direction;
-    const targetSlide = state.slides[targetSlideIndex];
-    if (!targetSlide) return state;
-
-    const block = currentSlide.blocks.find((item) => item.id === action.blockId);
-    if (!block) return state;
-
-    const slides = state.slides.map((slide, index) => {
-      if (index === slideIndex) return { ...slide, blocks: slide.blocks.filter((item) => item.id !== action.blockId) };
-      if (index === targetSlideIndex) {
-        return {
-          ...slide,
-          blocks: action.direction < 0 ? [...slide.blocks, block] : [block, ...slide.blocks],
-        };
-      }
-      return slide;
-    });
-
-    return { slides, selectedSlideIndex: targetSlideIndex, selectedBlockId: action.blockId };
-  }
-
-  return state;
+function isSlideHeading(block: RawBlock) {
+  if (block.type !== 'heading') return false;
+  const level = Number(block.props?.level ?? 1);
+  return level <= 2;
 }
 
-function updateSlide(state: SlideStudioState, slideIndex: number, slide: EditableSlide): SlideStudioState {
-  return {
-    ...state,
-    slides: state.slides.map((item, index) => (index === slideIndex ? slide : item)),
-  };
+function getSlideStartIndexes(content: TeacPartialBlock[]) {
+  const starts: number[] = [];
+
+  content.forEach((block, index) => {
+    const rawBlock = block as RawBlock;
+    if ((index === 0 && starts.length === 0) || (isSlideHeading(rawBlock) && index > 0)) {
+      starts.push(index);
+    }
+  });
+
+  return starts.length > 0 ? starts : [0];
 }
 
-function createEditableSlide(): EditableSlide {
+function createSlideHeading(slideNumber: number): TeacPartialBlock {
   return {
     id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `slide-${Date.now()}`,
-    blocks: [],
-    slideStyle: {},
-  };
+    type: 'heading',
+    props: { level: 1 },
+    content: [{ type: 'text', text: `Nouvelle slide ${slideNumber}`, styles: {} }],
+  } as TeacPartialBlock;
 }
 
-function createEditableBlock(blockType: string, props: Record<string, unknown> = {}): EditableBlock {
-  return {
-    id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${blockType}-${Date.now()}`,
-    type: blockType,
-    props,
-    content: undefined,
-    children: [],
-    style: defaultStyleForBlock(blockType),
-    editableText: defaultTextForBlock(blockType, props),
-  };
-}
-
-function defaultStyleForBlock(blockType: string): BlockStyle {
-  if (blockType === 'heading') return { fontWeight: 'bold' };
-  if (blockType === 'quote') return { fontStyle: 'italic' };
-  return {};
-}
-
-function defaultTextForBlock(blockType: string, props: Record<string, unknown>) {
-  if (blockType === 'heading') return `Heading ${Number(props.level ?? 1)}`;
-  if (blockType === 'paragraph') return 'Nouveau paragraphe';
-  if (blockType === 'bulletListItem') return 'Nouvel element';
-  if (blockType === 'numberedListItem') return 'Nouvel element';
-  if (blockType === 'codeBlock') return 'console.log("Hello world");';
-  if (blockType === 'quote') return 'Citation';
-  return '';
+function getBlockBackground(block: TeacPartialBlock | undefined) {
+  const props = (block as RawBlock | undefined)?.props;
+  return typeof props?._slideBackground === 'string' ? props._slideBackground : '#ffffff';
 }
 
 export default function SlideStudioPage() {
   const { courseId, sessionId } = useParams<{ courseId: string; sessionId: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [state, dispatch] = useReducer(reducer, initialState);
-  const [savedOk, setSavedOk] = useState(false);
+  const [content, setContent] = useState<TeacPartialBlock[] | null>(null);
+  const [selectedSlideIndex, setSelectedSlideIndex] = useState(0);
 
   const { data: session, isLoading } = useQuery<Session>({
     queryKey: ['session', sessionId],
@@ -260,25 +67,73 @@ export default function SlideStudioPage() {
     staleTime: 30_000,
   });
 
+  useEffect(() => {
+    if (!session) return;
+    setContent((Array.isArray(session.content) ? session.content : []) as TeacPartialBlock[]);
+    setSelectedSlideIndex(0);
+  }, [session]);
+
+  const slides = useMemo(() => groupBlocksIntoEditableSlides(content ?? []), [content]);
+  const slideStartIndexes = useMemo(() => getSlideStartIndexes(content ?? []), [content]);
+  const selectedSlide = slides[selectedSlideIndex] ?? slides[0];
+  const activeSlideStart = slideStartIndexes[selectedSlideIndex] ?? 0;
+  const activeBackground = getBlockBackground(content?.[activeSlideStart]);
+  const editorKey = useMemo(() => {
+    const blocks = content ?? [];
+    return blocks
+      .map((block, index) => {
+        const rawBlock = block as RawBlock;
+        if (!isSlideHeading(rawBlock) && index !== 0) return '';
+        return `${rawBlock.id ?? index}:${rawBlock.props?._slideBackground ?? ''}`;
+      })
+      .filter(Boolean)
+      .join('|');
+  }, [content]);
+
   const save = useMutation({
-    mutationFn: () => api.put(`/sessions/${sessionId}`, { content: editableSlidesToBlocks(state.slides) }),
+    mutationFn: () => api.put(`/sessions/${sessionId}`, { content: content ?? [] }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['session', sessionId] });
-      setSavedOk(true);
-      setTimeout(() => setSavedOk(false), 2000);
     },
   });
 
-  useEffect(() => {
-    if (!session) return;
-    dispatch({ type: 'INIT', slides: groupBlocksIntoEditableSlides(session.content, state.slides) });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session]);
+  const handleAddSlide = () => {
+    setContent((current) => {
+      const blocks = current ?? [];
+      const starts = getSlideStartIndexes(blocks);
+      const insertIndex = starts[selectedSlideIndex + 1] ?? blocks.length;
+      const next = [...blocks];
+      next.splice(insertIndex, 0, createSlideHeading(starts.length + 1));
+      return next;
+    });
+    setSelectedSlideIndex((index) => index + 1);
+  };
 
-  const selectedSlide = state.slides[state.selectedSlideIndex] ?? state.slides[0];
-  const selectedBlock = selectedSlide?.blocks.find((block) => block.id === state.selectedBlockId);
+  const handleBackgroundChange = (backgroundColor: string) => {
+    setContent((current) => {
+      const blocks = current ?? [];
+      if (blocks.length === 0) {
+        return [{ ...createSlideHeading(1), props: { level: 1, _slideBackground: backgroundColor } }];
+      }
 
-  if (isLoading) {
+      const starts = getSlideStartIndexes(blocks);
+      const targetIndex = starts[selectedSlideIndex] ?? 0;
+
+      return blocks.map((block, index) => {
+        if (index !== targetIndex) return block;
+        const rawBlock = block as RawBlock;
+        return {
+          ...block,
+          props: {
+            ...(rawBlock.props ?? {}),
+            _slideBackground: backgroundColor,
+          },
+        } as TeacPartialBlock;
+      });
+    });
+  };
+
+  if (isLoading || content === null) {
     return <div className="flex min-h-screen items-center justify-center bg-gray-50"><div className="h-8 w-8 animate-spin rounded-full border-b-2 border-purple-600" /></div>;
   }
 
@@ -286,7 +141,7 @@ export default function SlideStudioPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 text-center text-gray-500">
         <div>
-          <p className="mb-4">Séance introuvable.</p>
+          <p className="mb-4">Seance introuvable.</p>
           <button type="button" onClick={() => navigate(`/courses/${courseId}`)} className="font-medium text-purple-700 hover:underline">Retour au cours</button>
         </div>
       </div>
@@ -310,61 +165,67 @@ export default function SlideStudioPage() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => openRevealPreview(session, state.slides)}
+            onClick={() => openRevealPreview(session, slides)}
             className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 transition hover:border-gray-300 hover:text-gray-900"
           >
-            <Eye size={15} /> Aperçu
+            <Eye size={15} /> Apercu
           </button>
           <button
             type="button"
             onClick={() => save.mutate()}
             disabled={save.isPending}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white transition disabled:opacity-60 ${savedOk ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
           >
-            {savedOk ? <><Check size={15} /> Enregistré</> : save.isPending ? <><Save size={15} /> Sauvegarde…</> : <><Save size={15} /> Enregistrer</>}
+            {save.isSuccess && !save.isPending ? <><Check size={15} /> Enregistre</> : save.isPending ? <><Save size={15} /> Sauvegarde...</> : <><Save size={15} /> Enregistrer</>}
           </button>
           <button
             type="button"
-            onClick={() => downloadRevealHtml(session, state.slides)}
+            onClick={() => downloadRevealHtml(session, slides)}
             className="inline-flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-purple-700"
           >
-            <Download size={15} /> Télécharger
+            <Download size={15} /> Telecharger
           </button>
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[200px_minmax(0,1fr)_280px]">
+      <div className="grid min-h-0 flex-1 grid-cols-[200px_minmax(0,1fr)_260px]">
         <SlideNavigator
-          slides={state.slides}
-          selectedIndex={state.selectedSlideIndex}
-          onSelect={(index) => dispatch({ type: 'SELECT_SLIDE', index })}
-          onAddSlide={() => dispatch({ type: 'ADD_SLIDE' })}
-          onDeleteSlide={() => dispatch({ type: 'DELETE_SLIDE' })}
+          slides={slides}
+          selectedIndex={selectedSlideIndex}
+          onSelect={setSelectedSlideIndex}
+          onAddSlide={handleAddSlide}
         />
-        <SlideCanvas
-          slide={selectedSlide}
-          slideIndex={state.selectedSlideIndex}
-          totalSlides={state.slides.length}
-          selectedBlockId={state.selectedBlockId}
-          onSelectBlock={(blockId) => dispatch({ type: 'SELECT_BLOCK', blockId })}
-          onMoveUp={(blockId) => dispatch({ type: 'MOVE_BLOCK_UP', blockId })}
-          onMoveDown={(blockId) => dispatch({ type: 'MOVE_BLOCK_DOWN', blockId })}
-          onMoveToPrev={(blockId) => dispatch({ type: 'MOVE_BLOCK_TO_SLIDE', blockId, direction: -1 })}
-          onMoveToNext={(blockId) => dispatch({ type: 'MOVE_BLOCK_TO_SLIDE', blockId, direction: 1 })}
-          onDeleteBlock={(blockId) => dispatch({ type: 'DELETE_BLOCK', blockId })}
-          onInsertImage={(url) => dispatch({ type: 'INSERT_IMAGE_BLOCK', url })}
-          onInsertLink={(url, title) => dispatch({ type: 'INSERT_LINK_BLOCK', url, title })}
-          onInsertBlock={(blockType, props) => dispatch({ type: 'INSERT_BLOCK', blockType, props })}
-          onUpdateSlideStyle={(backgroundColor) => dispatch({ type: 'UPDATE_SLIDE_STYLE', backgroundColor })}
-          onSelectSlide={(index) => dispatch({ type: 'SELECT_SLIDE', index })}
-        />
-        <PropertiesPanel
-          selectedBlock={selectedBlock}
-          selectedSlide={selectedSlide}
-          onUpdateBlockText={(text) => dispatch({ type: 'UPDATE_BLOCK_TEXT', text })}
-          onUpdateBlockStyle={(style) => dispatch({ type: 'UPDATE_BLOCK_STYLE', style })}
-          onUpdateSlideStyle={(backgroundColor) => dispatch({ type: 'UPDATE_SLIDE_STYLE', backgroundColor })}
-        />
+
+        <main className="min-h-0 overflow-y-auto bg-white px-8 py-6">
+          <div className="mx-auto max-w-4xl rounded-lg border border-gray-200 bg-white py-6 shadow-sm">
+            <StudioSessionEditor
+              key={editorKey}
+              initialContent={content}
+              onChange={(blocks) => setContent(blocks as TeacPartialBlock[])}
+              uploadFile={uploadToCloudinary}
+            />
+          </div>
+        </main>
+
+        <aside className="border-l border-gray-200 bg-white p-4">
+          <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-gray-400">Slide active</h2>
+          <label className="block text-sm font-medium text-gray-700" htmlFor="slide-background">
+            Arriere-plan
+          </label>
+          <div className="mt-2 flex items-center gap-3">
+            <input
+              id="slide-background"
+              type="color"
+              value={activeBackground}
+              onChange={(event) => handleBackgroundChange(event.target.value)}
+              className="h-10 w-14 cursor-pointer rounded border border-gray-200 bg-white p-1"
+            />
+            <span className="font-mono text-xs text-gray-500">{activeBackground}</span>
+          </div>
+          <p className="mt-3 text-xs leading-5 text-gray-400">
+            La couleur est stockee dans <span className="font-mono">_slideBackground</span> sur le premier bloc de la slide.
+          </p>
+        </aside>
       </div>
     </div>
   );
