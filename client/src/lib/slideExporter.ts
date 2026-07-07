@@ -310,7 +310,7 @@ export function exportToRevealHtml(session: Session, slides: EditableSlide[], op
     .reveal section { text-align: left; }
     .reveal h1, .reveal h2, .reveal h3 { text-align: inherit; letter-spacing: 0; line-height: 1.08; }
     .reveal p, .reveal li { line-height: 1.35; }
-    .reveal img { max-height: 58vh; object-fit: contain; border-radius: 12px; box-shadow: 0 18px 45px rgba(15, 23, 42, 0.16); }
+    .reveal img { max-height: 42vh; object-fit: contain; border-radius: 12px; box-shadow: 0 18px 45px rgba(15, 23, 42, 0.16); }
     .reveal figcaption { margin-top: 0.6rem; font-size: 0.5em; color: #64748b; }
     .reveal pre { width: 100%; border-radius: 14px; padding: 1rem; background: #0f172a; color: #e2e8f0; box-shadow: 0 18px 45px rgba(15, 23, 42, 0.22); }
     .reveal pre code, .reveal code { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace; }
@@ -356,6 +356,7 @@ export function exportToRevealHtml(session: Session, slides: EditableSlide[], op
   <script>
     Reveal.initialize({
       hash: true,
+      center: false,
       controls: ${opts.controls},
       progress: ${opts.progress},
       slideNumber: ${opts.slideNumber},
