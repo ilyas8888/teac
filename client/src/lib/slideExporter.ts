@@ -306,36 +306,46 @@ export function exportToRevealHtml(session: Session, slides: EditableSlide[], op
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/${escapeHtml(opts.theme)}.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css">
   <style>
-    :root { --r-main-font: Inter, system-ui, sans-serif; --r-heading-font: Inter, system-ui, sans-serif; --r-code-font: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace; }
-    .reveal section { text-align: left; }
-    .reveal h1, .reveal h2, .reveal h3 { text-align: inherit; letter-spacing: 0; line-height: 1.08; }
-    .reveal p, .reveal li { line-height: 1.35; }
-    .reveal img { max-height: 42vh; object-fit: contain; border-radius: 12px; box-shadow: 0 18px 45px rgba(15, 23, 42, 0.16); }
-    .reveal figcaption { margin-top: 0.6rem; font-size: 0.5em; color: #64748b; }
-    .reveal pre { width: 100%; border-radius: 14px; padding: 1rem; background: #0f172a; color: #e2e8f0; box-shadow: 0 18px 45px rgba(15, 23, 42, 0.22); }
-    .reveal pre code, .reveal code { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace; }
-    .reveal :not(pre) > code { border-radius: 0.35rem; padding: 0.08em 0.32em; background: rgba(15, 23, 42, 0.1); color: #4338ca; }
-    .reveal blockquote { margin-left: 0; padding: 0.85rem 1.1rem; border-left: 6px solid #4f46e5; background: rgba(79, 70, 229, 0.08); box-shadow: none; font-style: normal; }
-    .reveal table { width: 100%; border-collapse: collapse; font-size: 0.72em; }
-    .reveal th, .reveal td { padding: 0.55rem 0.7rem; border: 1px solid rgba(148, 163, 184, 0.5); }
-    .reveal thead tr { background: rgba(79, 70, 229, 0.16); }
-    .reveal tbody tr:nth-child(even) { background: rgba(148, 163, 184, 0.12); }
-    .check-item { list-style: none; display: flex; align-items: center; gap: 0.55rem; }
-    .check-item input { width: 0.9em; height: 0.9em; accent-color: #4f46e5; }
-    .embed-card { width: 100%; margin: 1rem 0; border-radius: 16px; overflow: hidden; background: #0f172a; box-shadow: 0 18px 45px rgba(15, 23, 42, 0.22); }
+    :root {
+      --r-main-font: Inter, system-ui, sans-serif;
+      --r-heading-font: Inter, system-ui, sans-serif;
+      --r-code-font: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+      --r-main-font-size: 28px;
+      --r-heading1-size: 1.9em;
+      --r-heading2-size: 1.4em;
+      --r-heading3-size: 1.1em;
+    }
+    .reveal section { text-align: left; overflow: hidden; }
+    .reveal h1, .reveal h2, .reveal h3 { text-align: inherit; letter-spacing: 0; line-height: 1.1; margin-bottom: 0.4em; }
+    .reveal p, .reveal li { line-height: 1.4; margin-bottom: 0.3em; }
+    .reveal ul, .reveal ol { margin-top: 0; }
+    .reveal img { max-height: 40vh; object-fit: contain; border-radius: 10px; box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14); }
+    .reveal figure { margin: 0.4em 0; }
+    .reveal figcaption { margin-top: 0.4rem; font-size: 0.5em; color: #64748b; }
+    .reveal pre { width: 100%; border-radius: 12px; padding: 0.75rem 1rem; margin: 0.4em 0; background: #0f172a; color: #e2e8f0; box-shadow: 0 12px 32px rgba(15, 23, 42, 0.2); }
+    .reveal pre code, .reveal code { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace; font-size: 0.85em; }
+    .reveal :not(pre) > code { border-radius: 0.3rem; padding: 0.06em 0.28em; background: rgba(15, 23, 42, 0.1); color: #4338ca; }
+    .reveal blockquote { margin: 0.4em 0; padding: 0.7rem 1rem; border-left: 5px solid #4f46e5; background: rgba(79, 70, 229, 0.07); box-shadow: none; font-style: normal; }
+    .reveal table { width: 100%; border-collapse: collapse; font-size: 0.68em; }
+    .reveal th, .reveal td { padding: 0.45rem 0.6rem; border: 1px solid rgba(148, 163, 184, 0.5); }
+    .reveal thead tr { background: rgba(79, 70, 229, 0.14); }
+    .reveal tbody tr:nth-child(even) { background: rgba(148, 163, 184, 0.1); }
+    .check-item { list-style: none; display: flex; align-items: center; gap: 0.5rem; }
+    .check-item input { width: 0.85em; height: 0.85em; accent-color: #4f46e5; }
+    .embed-card { width: 100%; margin: 0.6rem 0; border-radius: 14px; overflow: hidden; background: #0f172a; box-shadow: 0 12px 32px rgba(15, 23, 42, 0.2); }
     .embed-card iframe { display: block; width: 100%; aspect-ratio: 16 / 9; border: 0; }
-    .file-link { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0.85rem; border: 1px solid rgba(79, 70, 229, 0.3); border-radius: 10px; color: #4338ca; background: rgba(79, 70, 229, 0.08); text-decoration: none; font-weight: 600; }
-    .link-card { display: flex; gap: 1rem; align-items: center; padding: 1rem; border: 1px solid rgba(148, 163, 184, 0.45); border-radius: 14px; color: inherit; text-decoration: none; background: rgba(255, 255, 255, 0.82); box-shadow: 0 14px 35px rgba(15, 23, 42, 0.12); }
-    .link-card img { width: 120px; height: 80px; object-fit: cover; flex: 0 0 auto; }
-    .link-card small { display: block; margin-top: 0.4rem; color: #64748b; }
-    .title-slide { min-height: 78vh; display: flex !important; flex-direction: column; justify-content: center; }
-    .title-slide .course-badge { display: inline-flex; width: fit-content; margin-bottom: 1.3rem; padding: 0.35rem 0.7rem; border-radius: 999px; background: rgba(79, 70, 229, 0.14); color: #4338ca; font-size: 0.38em; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
-    .title-slide h1 { max-width: 13ch; margin-bottom: 0.55rem; font-size: 2.35em; font-weight: 800; }
-    .title-slide .objectives { max-width: 820px; color: #475569; font-size: 0.78em; }
-    .title-slide .meta { margin-top: 1.6rem; color: #64748b; font-size: 0.45em; font-weight: 600; }
-    details { margin: 0.8rem 0; }
+    .file-link { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.5rem 0.75rem; border: 1px solid rgba(79, 70, 229, 0.3); border-radius: 9px; color: #4338ca; background: rgba(79, 70, 229, 0.07); text-decoration: none; font-weight: 600; }
+    .link-card { display: flex; gap: 0.8rem; align-items: center; padding: 0.8rem; border: 1px solid rgba(148, 163, 184, 0.4); border-radius: 12px; color: inherit; text-decoration: none; background: rgba(255, 255, 255, 0.82); box-shadow: 0 10px 28px rgba(15, 23, 42, 0.1); }
+    .link-card img { width: 90px; height: 60px; object-fit: cover; flex: 0 0 auto; border-radius: 6px; }
+    .link-card small { display: block; margin-top: 0.3rem; color: #64748b; font-size: 0.8em; }
+    .title-slide { display: flex !important; flex-direction: column; justify-content: center; height: 100%; padding: 2rem 0; box-sizing: border-box; }
+    .title-slide .course-badge { display: inline-flex; width: fit-content; margin-bottom: 0.8rem; padding: 0.3rem 0.6rem; border-radius: 999px; background: rgba(79, 70, 229, 0.12); color: #4338ca; font-size: 0.5em; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+    .title-slide h1 { margin-bottom: 0.4rem; font-size: 1.8em; font-weight: 800; line-height: 1.05; }
+    .title-slide .objectives { color: #475569; font-size: 0.6em; line-height: 1.5; max-height: 55vh; overflow: hidden; }
+    .title-slide .meta { margin-top: 0.8rem; color: #64748b; font-size: 0.48em; font-weight: 600; }
+    details { margin: 0.5rem 0; }
     summary { cursor: pointer; font-weight: 700; }
-    audio, video { margin: 0.8rem 0; }
+    audio, video { margin: 0.5rem 0; max-width: 100%; }
   </style>
 </head>
 <body>
@@ -360,6 +370,11 @@ export function exportToRevealHtml(session: Session, slides: EditableSlide[], op
     Reveal.initialize({
       hash: false,
       center: false,
+      width: 1100,
+      height: 700,
+      margin: 0.06,
+      minScale: 0.1,
+      maxScale: 2.0,
       controls: ${opts.controls},
       progress: ${opts.progress},
       slideNumber: ${opts.slideNumber},
