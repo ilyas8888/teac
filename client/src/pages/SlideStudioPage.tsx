@@ -24,9 +24,12 @@ type SlideStudioAction =
   | { type: 'UPDATE_BLOCK_TEXT'; text: string }
   | { type: 'UPDATE_BLOCK_STYLE'; style: BlockStyle }
   | { type: 'UPDATE_SLIDE_STYLE'; backgroundColor?: string }
+  | { type: 'ADD_SLIDE' }
+  | { type: 'DELETE_SLIDE' }
   | { type: 'INSERT_BLOCK'; blockType: string; props?: Record<string, unknown> }
   | { type: 'INSERT_IMAGE_BLOCK'; url: string }
   | { type: 'INSERT_LINK_BLOCK'; url: string; title?: string }
+  | { type: 'DELETE_BLOCK'; blockId: string }
   | { type: 'MOVE_BLOCK_UP'; blockId: string }
   | { type: 'MOVE_BLOCK_DOWN'; blockId: string }
   | { type: 'MOVE_BLOCK_TO_SLIDE'; blockId: string; direction: -1 | 1 };
@@ -52,6 +55,30 @@ function reducer(state: SlideStudioState, action: SlideStudioAction): SlideStudi
   }
 
   if (action.type === 'SELECT_BLOCK') return { ...state, selectedBlockId: action.blockId };
+
+  if (action.type === 'ADD_SLIDE') {
+    const slideIndex = Math.min(state.selectedSlideIndex, state.slides.length - 1);
+    const insertIndex = slideIndex + 1;
+    const slide = createEditableSlide();
+
+    return {
+      slides: [...state.slides.slice(0, insertIndex), slide, ...state.slides.slice(insertIndex)],
+      selectedSlideIndex: insertIndex,
+      selectedBlockId: undefined,
+    };
+  }
+
+  if (action.type === 'DELETE_SLIDE') {
+    if (state.slides.length <= 1) return state;
+
+    const slides = state.slides.filter((_, index) => index !== state.selectedSlideIndex);
+    const selectedSlideIndex = Math.min(state.selectedSlideIndex, slides.length - 1);
+    return {
+      slides,
+      selectedSlideIndex,
+      selectedBlockId: slides[selectedSlideIndex]?.blocks[0]?.id,
+    };
+  }
 
   const slideIndex = state.selectedSlideIndex;
   const currentSlide = state.slides[slideIndex];
@@ -127,6 +154,19 @@ function reducer(state: SlideStudioState, action: SlideStudioAction): SlideStudi
     };
   }
 
+  if (action.type === 'DELETE_BLOCK') {
+    const blockIndex = currentSlide.blocks.findIndex((block) => block.id === action.blockId);
+    if (blockIndex < 0) return state;
+
+    const blocks = currentSlide.blocks.filter((block) => block.id !== action.blockId);
+    return {
+      ...updateSlide(state, slideIndex, { ...currentSlide, blocks }),
+      selectedBlockId: state.selectedBlockId === action.blockId
+        ? blocks[Math.min(blockIndex, blocks.length - 1)]?.id
+        : state.selectedBlockId,
+    };
+  }
+
   if (action.type === 'MOVE_BLOCK_UP' || action.type === 'MOVE_BLOCK_DOWN') {
     const blockIndex = currentSlide.blocks.findIndex((block) => block.id === action.blockId);
     const targetIndex = action.type === 'MOVE_BLOCK_UP' ? blockIndex - 1 : blockIndex + 1;
@@ -167,6 +207,14 @@ function updateSlide(state: SlideStudioState, slideIndex: number, slide: Editabl
   return {
     ...state,
     slides: state.slides.map((item, index) => (index === slideIndex ? slide : item)),
+  };
+}
+
+function createEditableSlide(): EditableSlide {
+  return {
+    id: typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `slide-${Date.now()}`,
+    blocks: [],
+    slideStyle: {},
   };
 }
 
@@ -290,6 +338,8 @@ export default function SlideStudioPage() {
           slides={state.slides}
           selectedIndex={state.selectedSlideIndex}
           onSelect={(index) => dispatch({ type: 'SELECT_SLIDE', index })}
+          onAddSlide={() => dispatch({ type: 'ADD_SLIDE' })}
+          onDeleteSlide={() => dispatch({ type: 'DELETE_SLIDE' })}
         />
         <SlideCanvas
           slide={selectedSlide}
@@ -301,6 +351,7 @@ export default function SlideStudioPage() {
           onMoveDown={(blockId) => dispatch({ type: 'MOVE_BLOCK_DOWN', blockId })}
           onMoveToPrev={(blockId) => dispatch({ type: 'MOVE_BLOCK_TO_SLIDE', blockId, direction: -1 })}
           onMoveToNext={(blockId) => dispatch({ type: 'MOVE_BLOCK_TO_SLIDE', blockId, direction: 1 })}
+          onDeleteBlock={(blockId) => dispatch({ type: 'DELETE_BLOCK', blockId })}
           onInsertImage={(url) => dispatch({ type: 'INSERT_IMAGE_BLOCK', url })}
           onInsertLink={(url, title) => dispatch({ type: 'INSERT_LINK_BLOCK', url, title })}
           onInsertBlock={(blockType, props) => dispatch({ type: 'INSERT_BLOCK', blockType, props })}

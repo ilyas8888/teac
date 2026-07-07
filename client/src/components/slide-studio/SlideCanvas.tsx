@@ -32,6 +32,7 @@ interface SlideCanvasProps {
   onMoveDown: (blockId: string) => void;
   onMoveToPrev: (blockId: string) => void;
   onMoveToNext: (blockId: string) => void;
+  onDeleteBlock: (blockId: string) => void;
   onInsertImage: (url: string) => void;
   onInsertLink: (url: string, title?: string) => void;
   onInsertBlock: (blockType: string, props?: Record<string, unknown>) => void;
@@ -83,7 +84,7 @@ type InsertItem =
   | { label: string; icon: ReactNode; popover: 'image' | 'link'; blockType?: never; props?: never };
 
 export default function SlideCanvas(props: SlideCanvasProps) {
-  const { slide, slideIndex, totalSlides, selectedBlockId, onSelectBlock, onMoveUp, onMoveDown, onMoveToPrev, onMoveToNext, onInsertImage, onInsertLink, onInsertBlock, onUpdateSlideStyle, onSelectSlide } = props;
+  const { slide, slideIndex, totalSlides, selectedBlockId, onSelectBlock, onMoveUp, onMoveDown, onMoveToPrev, onMoveToNext, onDeleteBlock, onInsertImage, onInsertLink, onInsertBlock, onUpdateSlideStyle, onSelectSlide } = props;
   const [showInsertMenu, setShowInsertMenu] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [showLinkForm, setShowLinkForm] = useState(false);
@@ -238,6 +239,7 @@ export default function SlideCanvas(props: SlideCanvasProps) {
                     onMoveDown={() => onMoveDown(block.id)}
                     onMoveToPrev={() => onMoveToPrev(block.id)}
                     onMoveToNext={() => onMoveToNext(block.id)}
+                    onDelete={() => onDeleteBlock(block.id)}
                   />
                 ))
               )}

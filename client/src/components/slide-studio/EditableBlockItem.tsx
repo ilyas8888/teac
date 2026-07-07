@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowLeftToLine, ArrowRightToLine, ArrowUp, Code2, ExternalLink, Image as ImageIcon } from 'lucide-react';
+import { ArrowDown, ArrowLeftToLine, ArrowRightToLine, ArrowUp, Code2, ExternalLink, Image as ImageIcon, Trash2 } from 'lucide-react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { EditableBlock } from '../../lib/slideUtils';
 import { FONT_SIZE_MAP } from '../../lib/slideUtils';
@@ -15,6 +15,7 @@ interface EditableBlockItemProps {
   onMoveDown: () => void;
   onMoveToPrev: () => void;
   onMoveToNext: () => void;
+  onDelete: () => void;
 }
 
 function stringProp(block: EditableBlock, key: string) {
@@ -34,7 +35,7 @@ function blockStyle(block: EditableBlock): CSSProperties {
 }
 
 export default function EditableBlockItem(props: EditableBlockItemProps) {
-  const { block, isSelected, isFirst, isLast, slideIndex, totalSlides, onSelect, onMoveUp, onMoveDown, onMoveToPrev, onMoveToNext } = props;
+  const { block, isSelected, isFirst, isLast, slideIndex, totalSlides, onSelect, onMoveUp, onMoveDown, onMoveToPrev, onMoveToNext, onDelete } = props;
   const commonClass = 'min-w-0 rounded-lg px-3 py-2 transition';
 
   return (
@@ -55,6 +56,7 @@ export default function EditableBlockItem(props: EditableBlockItemProps) {
         <MoveButton label="Descendre" disabled={isLast} onClick={onMoveDown}><ArrowDown size={13} /></MoveButton>
         <MoveButton label="Slide précédente" disabled={slideIndex === 0} onClick={onMoveToPrev}><ArrowLeftToLine size={13} /></MoveButton>
         <MoveButton label="Slide suivante" disabled={slideIndex >= totalSlides - 1} onClick={onMoveToNext}><ArrowRightToLine size={13} /></MoveButton>
+        <MoveButton label="Supprimer" disabled={false} onClick={onDelete}><Trash2 size={13} /></MoveButton>
       </div>
     </div>
   );
