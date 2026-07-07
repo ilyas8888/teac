@@ -1,13 +1,25 @@
 import { Request, Response } from 'express';
 import prisma from '../services/prisma.service';
 
-const ALLOWED_THEMES = ['white', 'black', 'moon', 'sky', 'league', 'beige', 'serif', 'simple', 'solarized'] as const;
-const ALLOWED_TRANSITIONS = ['slide', 'fade', 'zoom', 'convex', 'concave', 'none'] as const;
+const ALLOWED_THEMES = ['white', 'black', 'moon', 'sky', 'league', 'beige'] as const;
+const ALLOWED_TRANSITIONS = ['slide', 'fade', 'zoom', 'none'] as const;
+const ALLOWED_SPEEDS = ['default', 'fast', 'slow'] as const;
+const ALLOWED_FONTS = ['inter', 'montserrat', 'roboto', 'lato', 'merriweather'] as const;
 type PresentTheme = typeof ALLOWED_THEMES[number];
 type PresentTransition = typeof ALLOWED_TRANSITIONS[number];
+type PresentSpeed = typeof ALLOWED_SPEEDS[number];
+type PresentFont = typeof ALLOWED_FONTS[number];
 interface PresentOptions {
   theme: PresentTheme;
   transition: PresentTransition;
+  speed: PresentSpeed;
+  font: PresentFont;
+  accent: string;
+  logo: string;
+  footer: string;
+  ratio: '169' | '43';
+  showNumbers: boolean;
+  showProgress: boolean;
   showMeta: boolean;
 }
 
@@ -48,9 +60,23 @@ export const presentSession = async (req: Request, res: Response): Promise<void>
 
   const rawTheme = typeof req.query.theme === 'string' ? req.query.theme : '';
   const rawTransition = typeof req.query.transition === 'string' ? req.query.transition : '';
+  const rawSpeed = typeof req.query.speed === 'string' ? req.query.speed : '';
+  const rawFont = typeof req.query.font === 'string' ? req.query.font : '';
+  const rawAccent = typeof req.query.accent === 'string' ? req.query.accent : '';
+  const rawLogo = typeof req.query.logo === 'string' ? req.query.logo : '';
+  const rawFooter = typeof req.query.footer === 'string' ? req.query.footer : '';
+  const rawRatio = typeof req.query.ratio === 'string' ? req.query.ratio : '';
   const options: PresentOptions = {
     theme: (ALLOWED_THEMES as readonly string[]).includes(rawTheme) ? rawTheme as PresentTheme : 'white',
     transition: (ALLOWED_TRANSITIONS as readonly string[]).includes(rawTransition) ? rawTransition as PresentTransition : 'slide',
+    speed: (ALLOWED_SPEEDS as readonly string[]).includes(rawSpeed) ? rawSpeed as PresentSpeed : 'default',
+    font: (ALLOWED_FONTS as readonly string[]).includes(rawFont) ? rawFont as PresentFont : 'inter',
+    accent: /^#[0-9a-fA-F]{6}$/.test(rawAccent) ? rawAccent : '#4338ca',
+    logo: rawLogo.startsWith('https://res.cloudinary.com/') ? rawLogo : '',
+    footer: rawFooter.slice(0, 100),
+    ratio: rawRatio === '43' ? '43' : '169',
+    showNumbers: req.query.numbers === '1',
+    showProgress: req.query.progress !== '0',
     showMeta: req.query.meta !== '0',
   };
 
@@ -376,6 +402,17 @@ function parseUrl(rawUrl: string): URL | null {
 }
 
 function renderPresentationHtml(title: string, slideSections: string, options: PresentOptions): string {
+  const googleFontHref = getGoogleFontHref(options.font);
+  const fontFamily = getFontFamily(options.font);
+  const revealWidth = options.ratio === '43' ? 960 : 1280;
+  const revealHeight = 720;
+  const logoHtml = options.logo
+    ? `<img class="presentation-logo" src="${escapeHtml(options.logo)}" alt="Logo" />`
+    : '';
+  const footerHtml = options.footer
+    ? `<div class="presentation-footer">${escapeHtml(options.footer)}</div>`
+    : '';
+
   return `<!doctype html>
 <html lang="fr">
 <head>
@@ -386,10 +423,16 @@ function renderPresentationHtml(title: string, slideSections: string, options: P
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/${options.theme}.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/monokai.css" />
+  ${googleFontHref ? `<link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="${googleFontHref}" />` : ''}
   <style>
+    :root { --accent: ${options.accent}; }
+    body, .reveal { font-family: ${fontFamily}; }
     .slide-meta { font-size: 0.55em; color: #6b7280; }
-    .objectives-box { border-left: 5px solid #4f46e5; background: #eef2ff; padding: 0.8em 1em; text-align: left; }
+    .objectives-box { border-left: 5px solid var(--accent); background: #eef2ff; padding: 0.8em 1em; text-align: left; }
     .objectives-box p { margin-bottom: 0; white-space: pre-wrap; }
+    .reveal a { color: var(--accent); }
     .link-card { display: flex; overflow: hidden; border: 1px solid #e5e7eb; border-radius: 8px; text-align: left; }
     .link-card-img { width: 120px; object-fit: cover; background: #f9fafb; }
     .link-card-body { padding: 0.75em; }
@@ -400,6 +443,8 @@ function renderPresentationHtml(title: string, slideSections: string, options: P
     .reveal figure img, .reveal video { max-height: 60vh; }
     .reveal table { font-size: 0.65em; }
     .reveal pre code { max-height: 520px; }
+    .presentation-logo { position: fixed; right: 24px; bottom: 22px; z-index: 20; max-width: 120px; max-height: 64px; object-fit: contain; }
+    .presentation-footer { position: fixed; left: 50%; bottom: 18px; z-index: 20; transform: translateX(-50%); color: #6b7280; font-size: 14px; line-height: 1.3; text-align: center; }
   </style>
 </head>
 <body>
@@ -413,11 +458,44 @@ function renderPresentationHtml(title: string, slideSections: string, options: P
   <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
   <script>
-    Reveal.initialize({ hash: true, transition: '${options.transition}', transitionSpeed: 'default', plugins: [RevealHighlight, RevealNotes] });
+    Reveal.initialize({
+      hash: true,
+      transition: '${options.transition}',
+      transitionSpeed: '${options.speed}',
+      slideNumber: ${options.showNumbers},
+      progress: ${options.showProgress},
+      width: ${revealWidth},
+      height: ${revealHeight},
+      plugins: [RevealHighlight, RevealNotes]
+    });
     mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
   </script>
+  ${logoHtml}
+  ${footerHtml}
 </body>
 </html>`;
+}
+
+function getGoogleFontHref(font: PresentFont): string {
+  const families: Record<Exclude<PresentFont, 'inter'>, string> = {
+    montserrat: 'Montserrat:wght@400;500;600;700',
+    roboto: 'Roboto:wght@400;500;700',
+    lato: 'Lato:wght@400;700',
+    merriweather: 'Merriweather:wght@400;700',
+  };
+  if (font === 'inter') return '';
+  return `https://fonts.googleapis.com/css2?family=${encodeURIComponent(families[font])}&display=swap`;
+}
+
+function getFontFamily(font: PresentFont): string {
+  const families: Record<PresentFont, string> = {
+    inter: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    montserrat: 'Montserrat, ui-sans-serif, system-ui, sans-serif',
+    roboto: 'Roboto, Arial, sans-serif',
+    lato: 'Lato, Arial, sans-serif',
+    merriweather: 'Merriweather, Georgia, serif',
+  };
+  return families[font];
 }
 
 function formatDate(date: Date): string {

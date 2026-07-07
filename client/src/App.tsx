@@ -12,6 +12,7 @@ import StudentsPage from './pages/StudentsPage';
 
 // Heavy: pulls in BlockNote — split out of the main bundle
 const SessionEditorPage = lazy(() => import('./pages/SessionEditorPage'));
+const PresentationCustomizePage = lazy(() => import('./pages/PresentationCustomizePage'));
 import EvaluationsPage from './pages/EvaluationsPage';
 import AIAssistantPage from './pages/AIAssistantPage';
 import MessagesPage from './pages/MessagesPage';
@@ -38,6 +39,8 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/courses/:courseId/sessions/:sessionId/customize"
+        element={<ProtectedRoute><Suspense fallback={<div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>}><PresentationCustomizePage /></Suspense></ProtectedRoute>} />
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<DashboardPage />} />
         <Route path="classes" element={<ClassesPage />} />
