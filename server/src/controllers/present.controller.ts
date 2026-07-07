@@ -1,6 +1,16 @@
 import { Request, Response } from 'express';
 import prisma from '../services/prisma.service';
 
+const ALLOWED_THEMES = ['white', 'black', 'moon', 'sky', 'league', 'beige', 'serif', 'simple', 'solarized'] as const;
+const ALLOWED_TRANSITIONS = ['slide', 'fade', 'zoom', 'convex', 'concave', 'none'] as const;
+type PresentTheme = typeof ALLOWED_THEMES[number];
+type PresentTransition = typeof ALLOWED_TRANSITIONS[number];
+interface PresentOptions {
+  theme: PresentTheme;
+  transition: PresentTransition;
+  showMeta: boolean;
+}
+
 type AnyRecord = Record<string, unknown>;
 
 interface Block {
@@ -36,6 +46,14 @@ export const presentSession = async (req: Request, res: Response): Promise<void>
     return;
   }
 
+  const rawTheme = typeof req.query.theme === 'string' ? req.query.theme : '';
+  const rawTransition = typeof req.query.transition === 'string' ? req.query.transition : '';
+  const options: PresentOptions = {
+    theme: (ALLOWED_THEMES as readonly string[]).includes(rawTheme) ? rawTheme as PresentTheme : 'white',
+    transition: (ALLOWED_TRANSITIONS as readonly string[]).includes(rawTransition) ? rawTransition as PresentTransition : 'slide',
+    showMeta: req.query.meta !== '0',
+  };
+
   const blocks = Array.isArray(session.content) ? (session.content as unknown[]).filter(isBlock) : [];
   const slides = groupBlocksIntoSlides(blocks);
   const titleSlide = renderTitleSlide({
@@ -45,14 +63,14 @@ export const presentSession = async (req: Request, res: Response): Promise<void>
     objectives: session.objectifs,
     courseName: session.course.nom,
     className: session.class.nom,
-  });
+  }, options.showMeta);
 
   const slideSections = [
     titleSlide,
     ...slides.map((slide) => `<section>${renderBlocksToHtml(slide)}</section>`),
   ].join('\n');
 
-  const html = renderPresentationHtml(session.titre, slideSections);
+  const html = renderPresentationHtml(session.titre, slideSections, options);
 
   if (req.query.download === '1') {
     res.setHeader('Content-Disposition', `attachment; filename="${toFilename(session.titre)}.html"`);
@@ -86,11 +104,11 @@ function renderTitleSlide(data: {
   objectives: string;
   courseName: string;
   className: string;
-}) {
+}, showMeta: boolean) {
   return `<section>
     <h1>${escapeHtml(data.title)}</h1>
-    <p class="slide-meta">${escapeHtml(data.courseName)} · ${escapeHtml(data.className)} · ${escapeHtml(data.date)} · ${escapeHtml(data.duration)}</p>
-    ${data.objectives ? `<div class="objectives-box"><strong>Objectifs</strong><p>${escapeHtml(data.objectives)}</p></div>` : ''}
+    ${showMeta ? `<p class="slide-meta">${escapeHtml(data.courseName)} · ${escapeHtml(data.className)} · ${escapeHtml(data.date)} · ${escapeHtml(data.duration)}</p>` : ''}
+    ${showMeta && data.objectives ? `<div class="objectives-box"><strong>Objectifs</strong><p>${escapeHtml(data.objectives)}</p></div>` : ''}
   </section>`;
 }
 
@@ -357,7 +375,7 @@ function parseUrl(rawUrl: string): URL | null {
   }
 }
 
-function renderPresentationHtml(title: string, slideSections: string): string {
+function renderPresentationHtml(title: string, slideSections: string, options: PresentOptions): string {
   return `<!doctype html>
 <html lang="fr">
 <head>
@@ -366,7 +384,7 @@ function renderPresentationHtml(title: string, slideSections: string): string {
   <title>${escapeHtml(title)}</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reset.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/white.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/${options.theme}.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/monokai.css" />
   <style>
     .slide-meta { font-size: 0.55em; color: #6b7280; }
@@ -395,7 +413,7 @@ function renderPresentationHtml(title: string, slideSections: string): string {
   <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
   <script>
-    Reveal.initialize({ hash: true, plugins: [RevealHighlight, RevealNotes] });
+    Reveal.initialize({ hash: true, transition: '${options.transition}', transitionSpeed: 'default', plugins: [RevealHighlight, RevealNotes] });
     mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
   </script>
 </body>
