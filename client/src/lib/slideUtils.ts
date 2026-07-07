@@ -71,8 +71,8 @@ function extractStyle(props: AnyRecord): BlockStyle {
   const rawStyle = isRecord(styleValue) ? styleValue : props;
   const style: BlockStyle = {};
 
-  if (typeof rawStyle.color === 'string') style.color = rawStyle.color;
-  if (typeof rawStyle.backgroundColor === 'string') style.backgroundColor = rawStyle.backgroundColor;
+  if (typeof rawStyle.color === 'string' && rawStyle.color !== 'default') style.color = rawStyle.color;
+  if (typeof rawStyle.backgroundColor === 'string' && rawStyle.backgroundColor !== 'default') style.backgroundColor = rawStyle.backgroundColor;
   if (['sm', 'base', 'lg', 'xl', '2xl'].includes(String(rawStyle.fontSize))) {
     style.fontSize = rawStyle.fontSize as BlockStyle['fontSize'];
   }

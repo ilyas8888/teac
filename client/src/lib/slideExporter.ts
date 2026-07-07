@@ -68,8 +68,8 @@ export function blockStyleToInlineStyle(style: BlockStyle = {}, slideBg?: string
   const entries: string[] = [];
   const color = style.color || (slideBg ? getAutoContrastColor(slideBg) : '');
 
-  if (color) entries.push(`color:${color}`);
-  if (style.backgroundColor) entries.push(`background-color:${style.backgroundColor}`);
+  if (color && color !== 'default') entries.push(`color:${color}`);
+  if (style.backgroundColor && style.backgroundColor !== 'default') entries.push(`background-color:${style.backgroundColor}`);
   if (style.fontSize) entries.push(`font-size:${FONT_SIZE_MAP[style.fontSize]}`);
   if (style.fontWeight) entries.push(`font-weight:${style.fontWeight}`);
   if (style.fontStyle) entries.push(`font-style:${style.fontStyle}`);
@@ -83,8 +83,8 @@ function renderStyledText(text: string, styles: unknown) {
   const inlineStyles: string[] = [];
   let html = escapeHtml(text).replace(/\n/g, '<br>');
 
-  if (typeof styleMap.textColor === 'string') inlineStyles.push(`color:${styleMap.textColor}`);
-  if (typeof styleMap.backgroundColor === 'string') inlineStyles.push(`background-color:${styleMap.backgroundColor}`);
+  if (typeof styleMap.textColor === 'string' && styleMap.textColor !== 'default') inlineStyles.push(`color:${styleMap.textColor}`);
+  if (typeof styleMap.backgroundColor === 'string' && styleMap.backgroundColor !== 'default') inlineStyles.push(`background-color:${styleMap.backgroundColor}`);
   if (inlineStyles.length > 0) html = `<span style="${escapeHtml(inlineStyles.join(';'))}">${html}</span>`;
   if (asBoolean(styleMap.code)) html = `<code>${html}</code>`;
   if (asBoolean(styleMap.strike)) html = `<s>${html}</s>`;
@@ -352,10 +352,13 @@ export function exportToRevealHtml(session: Session, slides: EditableSlide[], op
   </div>
   <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/common.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });
+  </script>
   <script>
     Reveal.initialize({
-      hash: true,
+      hash: false,
       center: false,
       controls: ${opts.controls},
       progress: ${opts.progress},
@@ -364,7 +367,6 @@ export function exportToRevealHtml(session: Session, slides: EditableSlide[], op
     }).then(function () {
       if (window.hljs) window.hljs.highlightAll();
     });
-    mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });
   </script>
 </body>
 </html>`;
