@@ -27,7 +27,11 @@ export default function SlideNavigator({ slides, selectedIndex, onSelect, onAddS
         {slides.map((slide, index) => {
           const backgroundColor = slide.slideStyle.backgroundColor || '#ffffff';
           const color = getAutoContrastColor(backgroundColor);
-          const previewText = slide.blocks.map((block) => block.editableText).find(Boolean) || 'Slide vide';
+          const firstImageUrl = slide.blocks.find((b) => b.type === 'image')?.props?.url as string | undefined;
+          const previewText = slide.blocks
+            .filter((b) => b.type !== 'image')
+            .map((b) => b.editableText)
+            .find(Boolean) || (firstImageUrl ? '' : 'Slide vide');
 
           return (
             <button
@@ -41,11 +45,21 @@ export default function SlideNavigator({ slides, selectedIndex, onSelect, onAddS
               }`}
             >
               <div
-                className="aspect-video rounded-md border border-black/10 p-2 shadow-sm"
+                className="aspect-video overflow-hidden rounded-md border border-black/10 shadow-sm"
                 style={{ backgroundColor, color }}
               >
-                <div className="text-[10px] font-semibold opacity-70">{index + 1}</div>
-                <div className="mt-1 line-clamp-3 text-[11px] leading-snug">{previewText}</div>
+                {firstImageUrl ? (
+                  <img
+                    src={firstImageUrl}
+                    alt=""
+                    className="h-full w-full object-contain"
+                  />
+                ) : (
+                  <div className="p-2">
+                    <div className="text-[10px] font-semibold opacity-70">{index + 1}</div>
+                    <div className="mt-1 line-clamp-3 text-[11px] leading-snug">{previewText}</div>
+                  </div>
+                )}
               </div>
             </button>
           );

@@ -225,14 +225,14 @@ export function renderEditableBlock(block: EditableBlock, slideBg?: string) {
 
   if (block.type === 'image') {
     const url = getStringProp(block, 'url');
-    const caption = getStringProp(block, 'caption') || block.editableText;
+    const caption = getStringProp(block, 'caption');
     const width = getProp(block.props, 'width');
     const textAlignment = asString(getProp(block.props, 'textAlignment'));
     const figureStyles = [inlineStyle];
     if (textAlignment) figureStyles.push(`text-align:${textAlignment}`);
     const figureStyleAttr = figureStyles.filter(Boolean).length > 0 ? ` style="${escapeHtml(figureStyles.filter(Boolean).join(';'))}"` : '';
     const widthAttr = typeof width === 'number' || typeof width === 'string' ? ` style="width:${escapeHtml(width)}${typeof width === 'number' ? 'px' : ''};max-width:100%"` : '';
-    return `<figure${figureStyleAttr}>${url ? `<img src="${escapeHtml(url)}" alt="${escapeHtml(caption)}"${widthAttr}>` : ''}${caption ? `<figcaption>${renderInlineContent(block.content) || escapeHtml(caption)}</figcaption>` : ''}</figure>`;
+    return `<figure${figureStyleAttr}>${url ? `<img src="${escapeHtml(url)}" alt="${escapeHtml(caption)}"${widthAttr}>` : ''}${caption ? `<figcaption>${escapeHtml(caption)}</figcaption>` : ''}</figure>`;
   }
 
   if (block.type === 'linkCard') {
