@@ -5,7 +5,7 @@ import { ArrowLeft, Check, Download, Eye, Save } from 'lucide-react';
 import SessionEditor from '../components/SessionEditor';
 import SlideNavigator from '../components/slide-studio/SlideNavigator';
 import { uploadToCloudinary } from '../lib/cloudinary';
-import { downloadRevealHtml, openRevealPreview } from '../lib/slideExporter';
+import { downloadRevealHtml, openRevealPreview, type PresentOptions } from '../lib/slideExporter';
 import { groupBlocksIntoEditableSlides, type RawBlock } from '../lib/slideUtils';
 import api from '../services/api';
 import type { Session } from '../types';
@@ -19,6 +19,8 @@ interface SessionEditorWithUploadProps {
 }
 
 const StudioSessionEditor = SessionEditor as ComponentType<SessionEditorWithUploadProps>;
+const exportThemes: PresentOptions['theme'][] = ['white', 'black', 'night', 'moon', 'solarized', 'sky'];
+const exportTransitions: PresentOptions['transition'][] = ['slide', 'fade', 'zoom', 'convex', 'concave', 'none'];
 
 function isSlideHeading(block: RawBlock) {
   if (block.type !== 'heading') return false;
@@ -59,6 +61,13 @@ export default function SlideStudioPage() {
   const qc = useQueryClient();
   const [content, setContent] = useState<TeacPartialBlock[] | null>(null);
   const [selectedSlideIndex, setSelectedSlideIndex] = useState(0);
+  const [exportOptions, setExportOptions] = useState<Pick<PresentOptions, 'transition' | 'theme' | 'controls' | 'progress' | 'slideNumber'>>({
+    transition: 'slide',
+    theme: 'white',
+    controls: true,
+    progress: true,
+    slideNumber: true,
+  });
 
   const { data: session, isLoading } = useQuery<Session>({
     queryKey: ['session', sessionId],
@@ -165,7 +174,7 @@ export default function SlideStudioPage() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => openRevealPreview(session, slides)}
+            onClick={() => openRevealPreview(session, slides, exportOptions)}
             className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 transition hover:border-gray-300 hover:text-gray-900"
           >
             <Eye size={15} /> Apercu
@@ -180,7 +189,7 @@ export default function SlideStudioPage() {
           </button>
           <button
             type="button"
-            onClick={() => downloadRevealHtml(session, slides)}
+            onClick={() => downloadRevealHtml(session, slides, exportOptions)}
             className="inline-flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-purple-700"
           >
             <Download size={15} /> Telecharger
@@ -225,6 +234,56 @@ export default function SlideStudioPage() {
           <p className="mt-3 text-xs leading-5 text-gray-400">
             La couleur est stockee dans <span className="font-mono">_slideBackground</span> sur le premier bloc de la slide.
           </p>
+
+          <div className="mt-8 border-t border-gray-200 pt-5">
+            <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-gray-400">Export</h2>
+
+            <label className="block text-sm font-medium text-gray-700" htmlFor="export-theme">
+              Theme
+            </label>
+            <select
+              id="export-theme"
+              value={exportOptions.theme}
+              onChange={(event) => setExportOptions((current) => ({ ...current, theme: event.target.value as PresentOptions['theme'] }))}
+              className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+            >
+              {exportThemes.map((theme) => (
+                <option key={theme} value={theme}>{theme}</option>
+              ))}
+            </select>
+
+            <label className="mt-4 block text-sm font-medium text-gray-700" htmlFor="export-transition">
+              Transition
+            </label>
+            <select
+              id="export-transition"
+              value={exportOptions.transition}
+              onChange={(event) => setExportOptions((current) => ({ ...current, transition: event.target.value as PresentOptions['transition'] }))}
+              className="mt-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+            >
+              {exportTransitions.map((transition) => (
+                <option key={transition} value={transition}>{transition}</option>
+              ))}
+            </select>
+
+            <div className="mt-4 space-y-3">
+              {([
+                ['controls', 'Controles'],
+                ['progress', 'Progression'],
+                ['slideNumber', 'Numero de slide'],
+              ] as const).map(([key, label]) => (
+                <label key={key} className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={exportOptions[key]}
+                    onChange={(event) => setExportOptions((current) => ({ ...current, [key]: event.target.checked }))}
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
         </aside>
       </div>
     </div>
