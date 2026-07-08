@@ -14,6 +14,7 @@ import type { TeacBlock, TeacPartialBlock } from '../lib/blocknoteSchema';
 interface SessionEditorWithUploadProps {
   initialContent?: TeacPartialBlock[];
   editable?: boolean;
+  editorTheme?: 'light' | 'dark';
   onChange?: (blocks: TeacBlock[]) => void;
   uploadFile?: (file: File) => Promise<string>;
 }
@@ -21,6 +22,7 @@ interface SessionEditorWithUploadProps {
 const StudioSessionEditor = SessionEditor as ComponentType<SessionEditorWithUploadProps>;
 const exportThemes: PresentOptions['theme'][] = ['white', 'black', 'night', 'moon', 'solarized', 'sky'];
 const exportTransitions: PresentOptions['transition'][] = ['slide', 'fade', 'zoom', 'convex', 'concave', 'none'];
+const DARK_THEMES = new Set<PresentOptions['theme']>(['black', 'night', 'moon']);
 
 const THEME_CANVAS: Record<PresentOptions['theme'], { canvas: string; slide: string; text: string; border: string }> = {
   white:     { canvas: '#e8e8e8', slide: '#ffffff', text: '#222222', border: '#d0d0d0' },
@@ -103,6 +105,7 @@ export default function SlideStudioPage() {
   const selectedSlide = slides[selectedSlideIndex] ?? slides[0];
   const activeSlideStart = slideStartIndexes[selectedSlideIndex] ?? 0;
   const activeBackground = getBlockBackground(content?.[activeSlideStart]);
+  const editorTheme: 'light' | 'dark' = DARK_THEMES.has(exportOptions.theme) ? 'dark' : 'light';
 
   const save = useMutation({
     mutationFn: () => api.put(`/sessions/${sessionId}`, { content: content ?? [] }),
@@ -237,8 +240,9 @@ export default function SlideStudioPage() {
             }}
           >
             <StudioSessionEditor
-              key={`slide-${selectedSlideIndex}`}
+              key={`slide-${selectedSlideIndex}-${editorTheme}`}
               initialContent={currentSlideBlocks}
+              editorTheme={editorTheme}
               onChange={handleSlideChange}
               uploadFile={uploadToCloudinary}
             />

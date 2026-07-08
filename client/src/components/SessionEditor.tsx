@@ -21,6 +21,7 @@ import {
 interface SessionEditorProps {
   initialContent?: TeacPartialBlock[];
   editable?: boolean;
+  editorTheme?: 'light' | 'dark';
   onChange?: (blocks: TeacBlock[]) => void;
 }
 
@@ -28,7 +29,7 @@ interface SessionEditorProps {
  * Notion-style block editor for a session's rich content.
  * Stores/emits BlockNote's document (array of blocks) as plain JSON.
  */
-export default function SessionEditor({ initialContent, editable = true, onChange }: SessionEditorProps) {
+export default function SessionEditor({ initialContent, editable = true, editorTheme = 'light', onChange }: SessionEditorProps) {
   const editor = useCreateBlockNote({
     schema: teacBlockNoteSchema,
     // BlockNote requires at least one block; undefined => a single empty paragraph
@@ -41,7 +42,7 @@ export default function SessionEditor({ initialContent, editable = true, onChang
     <BlockNoteView
       editor={editor}
       editable={editable}
-      theme="light"
+      theme={editorTheme}
       slashMenu={false}
       onChange={() => onChange?.(editor.document)}
     >
