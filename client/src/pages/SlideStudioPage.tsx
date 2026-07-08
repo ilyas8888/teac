@@ -93,20 +93,16 @@ export default function SlideStudioPage() {
 
   const slides = useMemo(() => groupBlocksIntoEditableSlides(content ?? []), [content]);
   const slideStartIndexes = useMemo(() => getSlideStartIndexes(content ?? []), [content]);
+  const currentSlideBlocks = useMemo(() => {
+    const blocks = content ?? [];
+    const starts = slideStartIndexes;
+    const start = starts[selectedSlideIndex] ?? 0;
+    const end = starts[selectedSlideIndex + 1] ?? blocks.length;
+    return blocks.slice(start, end) as TeacPartialBlock[];
+  }, [content, selectedSlideIndex, slideStartIndexes]);
   const selectedSlide = slides[selectedSlideIndex] ?? slides[0];
   const activeSlideStart = slideStartIndexes[selectedSlideIndex] ?? 0;
   const activeBackground = getBlockBackground(content?.[activeSlideStart]);
-  const editorKey = useMemo(() => {
-    const blocks = content ?? [];
-    return blocks
-      .map((block, index) => {
-        const rawBlock = block as RawBlock;
-        if (!isSlideHeading(rawBlock) && index !== 0) return '';
-        return `${rawBlock.id ?? index}:${rawBlock.props?._slideBackground ?? ''}`;
-      })
-      .filter(Boolean)
-      .join('|');
-  }, [content]);
 
   const save = useMutation({
     mutationFn: () => api.put(`/sessions/${sessionId}`, { content: content ?? [] }),
@@ -125,6 +121,20 @@ export default function SlideStudioPage() {
       return next;
     });
     setSelectedSlideIndex((index) => index + 1);
+  };
+
+  const handleSlideChange = (newBlocks: TeacBlock[]) => {
+    setContent((prev) => {
+      const blocks = prev ?? [];
+      const starts = getSlideStartIndexes(blocks);
+      const start = starts[selectedSlideIndex] ?? 0;
+      const end = starts[selectedSlideIndex + 1] ?? blocks.length;
+      return [
+        ...blocks.slice(0, start),
+        ...(newBlocks as TeacPartialBlock[]),
+        ...blocks.slice(end),
+      ];
+    });
   };
 
   const handleBackgroundChange = (backgroundColor: string) => {
@@ -227,9 +237,9 @@ export default function SlideStudioPage() {
             }}
           >
             <StudioSessionEditor
-              key={editorKey}
-              initialContent={content}
-              onChange={(blocks) => setContent(blocks as TeacPartialBlock[])}
+              key={`slide-${selectedSlideIndex}`}
+              initialContent={currentSlideBlocks}
+              onChange={handleSlideChange}
               uploadFile={uploadToCloudinary}
             />
           </div>
