@@ -24,9 +24,9 @@ export function toDatetimeLocal(iso: string) {
 function makeBlock(type: BlockType): ContentBlock {
   switch (type) {
     case 'text':  return { type: 'text', content: '' };
-    case 'image': return { type: 'image', url: '' };
-    case 'table': return { type: 'table', headers: ['', '', ''], rows: [['', '', ''], ['', '', '']] };
-    case 'qcm':  return { type: 'qcm', multiple: false, options: ['', '', '', ''], correctes: [] };
+    case 'image': return { type: 'image', url: '', consigne: '' };
+    case 'table': return { type: 'table', headers: ['', '', ''], rows: [['', '', ''], ['', '', '']], consigne: '' };
+    case 'qcm':  return { type: 'qcm', multiple: false, options: ['', '', '', ''], correctes: [], consigne: '' };
   }
 }
 
@@ -88,6 +88,13 @@ function ImageBlockEditor({ block, onChange, onRemove }: {
         <button type="button" onClick={onRemove} className="ml-auto text-xs text-gray-300 hover:text-red-400">×</button>
       </div>
 
+      <input
+        value={block.consigne ?? ''}
+        onChange={(e) => onChange({ ...block, consigne: e.target.value })}
+        placeholder="Consigne liée à cette image (ex : Analysez le document ci-dessous)"
+        className="w-full rounded-lg border border-emerald-200 px-3 py-1.5 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+      />
+
       {block.url ? (
         <div className="relative">
           <img
@@ -146,6 +153,14 @@ function TableBlockEditor({ block, onChange, onRemove }: {
         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${BLOCK_BADGE.table}`}>Tableau</span>
         <button type="button" onClick={onRemove} className="ml-auto text-xs text-gray-300 hover:text-red-400">×</button>
       </div>
+
+      <input
+        value={block.consigne ?? ''}
+        onChange={(e) => onChange({ ...block, consigne: e.target.value })}
+        placeholder="Consigne liée à ce tableau (ex : Complétez le tableau suivant)"
+        className="w-full rounded-lg border border-orange-200 px-3 py-1.5 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100"
+      />
+
       <div className="overflow-auto rounded border border-gray-200">
         <table className="w-full border-collapse text-sm">
           <tbody>
@@ -205,7 +220,6 @@ function QcmBlockEditor({ block, onChange, onRemove }: {
     <div className="space-y-2">
       <div className="flex items-center gap-2 flex-wrap">
         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${BLOCK_BADGE.qcm}`}>QCM</span>
-        {/* Toggle choix unique / multiple */}
         <button
           type="button"
           onClick={() => onChange({ ...block, multiple: !block.multiple, correctes: [] })}
@@ -215,6 +229,14 @@ function QcmBlockEditor({ block, onChange, onRemove }: {
         </button>
         <button type="button" onClick={onRemove} className="ml-auto text-xs text-gray-300 hover:text-red-400">×</button>
       </div>
+
+      <input
+        value={block.consigne ?? ''}
+        onChange={(e) => onChange({ ...block, consigne: e.target.value })}
+        placeholder="Question posée (ex : Parmi ces propositions, laquelle est correcte ?)"
+        className="w-full rounded-lg border border-purple-200 px-3 py-1.5 text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
+      />
+
       <div className="space-y-1.5 pl-1">
         {block.options.map((opt, i) => {
           const isCorrecte = block.correctes.includes(i);
@@ -258,9 +280,10 @@ function BlockEditor({ block, onChange, onRemove }: {
 
 // ---------- Question editor ----------
 
-function QuestionEditor({ ex, q, exIdx, qIdx, onUpdate, onRemove }: {
+function QuestionEditor({ ex, q, exIdx, qIdx, onUpdate, onRemove, onMoveUp, onMoveDown }: {
   ex: EvalExercice; q: EvalQuestion; exIdx: number; qIdx: number;
   onUpdate: (q: EvalQuestion) => void; onRemove: () => void;
+  onMoveUp?: () => void; onMoveDown?: () => void;
 }) {
   function addBlock(type: BlockType) {
     onUpdate({ ...q, blocks: [...q.blocks, makeBlock(type)] });
@@ -280,6 +303,10 @@ function QuestionEditor({ ex, q, exIdx, qIdx, onUpdate, onRemove }: {
           Q{exIdx + 1}.{qIdx + 1}
         </span>
         <div className="flex items-center gap-1 ml-auto">
+          <button type="button" onClick={onMoveUp} disabled={!onMoveUp}
+            className="rounded p-1 text-gray-400 hover:bg-gray-200 disabled:opacity-25" title="Monter">↑</button>
+          <button type="button" onClick={onMoveDown} disabled={!onMoveDown}
+            className="rounded p-1 text-gray-400 hover:bg-gray-200 disabled:opacity-25" title="Descendre">↓</button>
           <input
             type="number"
             value={q.points}
@@ -288,7 +315,10 @@ function QuestionEditor({ ex, q, exIdx, qIdx, onUpdate, onRemove }: {
             className="w-14 rounded border border-gray-200 bg-white px-2 py-1 text-center text-sm outline-none focus:border-indigo-300"
           />
           <span className="text-xs text-gray-400">pts</span>
-          <button type="button" onClick={onRemove} className="ml-1 rounded p-1 text-gray-300 hover:text-red-400">×</button>
+          <button type="button" onClick={onRemove} title="Supprimer cette question"
+            className="ml-1 rounded p-1 text-red-300 hover:bg-red-50 hover:text-red-500">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          </button>
         </div>
       </div>
 
@@ -384,6 +414,16 @@ export default function EvaluationCreatePage() {
     setExercices((p) => p.map((e) =>
       e.id === exId ? { ...e, questions: e.questions.map((old) => old.id === q.id ? q : old) } : e
     ));
+  }
+  function moveQuestion(exId: string, qIdx: number, dir: 'up' | 'down') {
+    setExercices((p) => p.map((ex) => {
+      if (ex.id !== exId) return ex;
+      const qs = [...ex.questions];
+      const swap = dir === 'up' ? qIdx - 1 : qIdx + 1;
+      if (swap < 0 || swap >= qs.length) return ex;
+      [qs[qIdx], qs[swap]] = [qs[swap], qs[qIdx]];
+      return { ...ex, questions: qs };
+    }));
   }
 
   const totalPoints = exercices.reduce((s, ex) => s + ex.questions.reduce((sq, q) => sq + q.points, 0), 0);
@@ -540,6 +580,8 @@ export default function EvaluationCreatePage() {
                         qIdx={qIdx}
                         onUpdate={(updated) => updateQuestion(ex.id, updated)}
                         onRemove={() => removeQuestion(ex.id, q.id)}
+                        onMoveUp={qIdx > 0 ? () => moveQuestion(ex.id, qIdx, 'up') : undefined}
+                        onMoveDown={qIdx < ex.questions.length - 1 ? () => moveQuestion(ex.id, qIdx, 'down') : undefined}
                       />
                     ))}
                     <button type="button" onClick={() => addQuestion(ex.id)}

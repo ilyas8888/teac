@@ -20,9 +20,12 @@ function ImageBlockView({ block }: { block: ImageBlock }) {
   if (!block.url) return null;
   return (
     <figure className="my-2">
+      {block.consigne && (
+        <p className="mb-2 text-sm font-medium text-gray-800">{block.consigne}</p>
+      )}
       <img
         src={block.url}
-        alt={block.caption ?? 'Figure'}
+        alt={block.caption ?? block.consigne ?? 'Figure'}
         className="max-h-72 max-w-full rounded border border-gray-200 object-contain"
       />
       {block.caption && (
@@ -34,29 +37,34 @@ function ImageBlockView({ block }: { block: ImageBlock }) {
 
 function TableBlockView({ block }: { block: TableBlock }) {
   return (
-    <div className="overflow-auto rounded border border-gray-200">
-      <table className="w-full border-collapse text-sm">
-        <thead>
-          <tr className="bg-gray-100">
-            {block.headers.map((h, i) => (
-              <th key={i} className="border border-gray-200 px-3 py-1.5 text-left text-xs font-semibold text-gray-700">
-                {h || ' '}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {block.rows.map((row, ri) => (
-            <tr key={ri} className={ri % 2 === 0 ? '' : 'bg-gray-50'}>
-              {row.map((cell, ci) => (
-                <td key={ci} className="border border-gray-200 px-3 py-1.5 text-gray-700">
-                  {cell || ' '}
-                </td>
+    <div className="space-y-1.5">
+      {block.consigne && (
+        <p className="text-sm font-medium text-gray-800">{block.consigne}</p>
+      )}
+      <div className="overflow-auto rounded border border-gray-200">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="bg-gray-100">
+              {block.headers.map((h, i) => (
+                <th key={i} className="border border-gray-200 px-3 py-1.5 text-left text-xs font-semibold text-gray-700">
+                  {h || ' '}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {block.rows.map((row, ri) => (
+              <tr key={ri} className={ri % 2 === 0 ? '' : 'bg-gray-50'}>
+                {row.map((cell, ci) => (
+                  <td key={ci} className="border border-gray-200 px-3 py-1.5 text-gray-700">
+                    {cell || ' '}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -64,6 +72,9 @@ function TableBlockView({ block }: { block: TableBlock }) {
 function QcmBlockView({ block }: { block: QcmBlock }) {
   return (
     <div className="space-y-1.5">
+      {block.consigne && (
+        <p className="mb-2 text-sm font-medium text-gray-800">{block.consigne}</p>
+      )}
       {block.options.map((opt, i) => {
         if (!opt) return null;
         return (
