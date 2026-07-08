@@ -91,17 +91,17 @@ export interface Resource {
   sessionId: string;
 }
 
-export type QuestionType = 'open' | 'qcm' | 'image';
+export interface TextBlock  { type: 'text';   content: string; }
+export interface ImageBlock { type: 'image';  url: string; caption?: string; }
+export interface TableBlock { type: 'table';  headers: string[]; rows: string[][]; }
+export interface QcmBlock   { type: 'qcm';   options: string[]; optionCorrecte?: number; }
+export type ContentBlock = TextBlock | ImageBlock | TableBlock | QcmBlock;
+export type BlockType = ContentBlock['type'];
 
 export interface EvalQuestion {
   id: string;
-  type?: QuestionType;
-  texte: string;
   points: number;
-  options?: string[];
-  optionCorrecte?: number;
-  imageUrl?: string;
-  imageCaption?: string;
+  blocks: ContentBlock[];
 }
 
 export interface EvalExercice {

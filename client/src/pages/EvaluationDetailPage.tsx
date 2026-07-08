@@ -4,57 +4,117 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import api from '../services/api';
-import type { Evaluation, EvaluationContent, EvalExercice, EvalQuestion } from '../types';
+import type {
+  Evaluation, EvaluationContent, EvalExercice, EvalQuestion,
+  ContentBlock, TextBlock, ImageBlock, TableBlock, QcmBlock,
+} from '../types';
+
+// ---------- Block renderer ----------
+
+function TextBlockView({ block }: { block: TextBlock }) {
+  return <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800">{block.content}</p>;
+}
+
+function ImageBlockView({ block }: { block: ImageBlock }) {
+  if (!block.url) return null;
+  return (
+    <figure className="my-2">
+      <img
+        src={block.url}
+        alt={block.caption ?? 'Figure'}
+        className="max-h-72 max-w-full rounded border border-gray-200 object-contain"
+      />
+      {block.caption && (
+        <figcaption className="mt-1 text-xs italic text-gray-500">{block.caption}</figcaption>
+      )}
+    </figure>
+  );
+}
+
+function TableBlockView({ block }: { block: TableBlock }) {
+  return (
+    <div className="overflow-auto rounded border border-gray-200">
+      <table className="w-full border-collapse text-sm">
+        <thead>
+          <tr className="bg-gray-100">
+            {block.headers.map((h, i) => (
+              <th key={i} className="border border-gray-200 px-3 py-1.5 text-left text-xs font-semibold text-gray-700">
+                {h || ' '}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {block.rows.map((row, ri) => (
+            <tr key={ri} className={ri % 2 === 0 ? '' : 'bg-gray-50'}>
+              {row.map((cell, ci) => (
+                <td key={ci} className="border border-gray-200 px-3 py-1.5 text-gray-700">
+                  {cell || ' '}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function QcmBlockView({ block }: { block: QcmBlock }) {
+  return (
+    <div className="space-y-1.5">
+      {block.options.map((opt, i) => {
+        if (!opt) return null;
+        const isCorrect = block.optionCorrecte === i;
+        return (
+          <div key={i} className={`flex items-center gap-2.5 text-sm ${isCorrect ? 'print:font-semibold' : ''}`}>
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-gray-400 text-xs text-gray-500">
+              {String.fromCharCode(65 + i)}
+            </span>
+            <span className="text-gray-700">{opt}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function BlockView({ block }: { block: ContentBlock }) {
+  if (block.type === 'text')  return <TextBlockView  block={block as TextBlock} />;
+  if (block.type === 'image') return <ImageBlockView block={block as ImageBlock} />;
+  if (block.type === 'table') return <TableBlockView block={block as TableBlock} />;
+  if (block.type === 'qcm')  return <QcmBlockView   block={block as QcmBlock} />;
+  return null;
+}
+
+// ---------- Question / Exercice views ----------
 
 function QuestionView({ q, exIdx, qIdx }: { q: EvalQuestion; exIdx: number; qIdx: number }) {
-  const type = q.type ?? 'open';
+  const hasQcm = q.blocks.some((b) => b.type === 'qcm');
 
   return (
     <div className="mb-5">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex flex-1 items-start gap-2">
-          <span className="mt-0.5 shrink-0 rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-bold text-indigo-600">
-            {exIdx + 1}.{qIdx + 1}
-          </span>
-          <p className="text-sm leading-relaxed text-gray-800">{q.texte}</p>
-        </div>
-        {type !== 'image' && q.points > 0 && (
-          <span className="shrink-0 rounded bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-500">
+      <div className="mb-2 flex items-center gap-2">
+        <span className="shrink-0 rounded bg-indigo-50 px-1.5 py-0.5 text-xs font-bold text-indigo-600">
+          {exIdx + 1}.{qIdx + 1}
+        </span>
+        {q.points > 0 && (
+          <span className="ml-auto shrink-0 rounded bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-500">
             {q.points} pt{q.points > 1 ? 's' : ''}
           </span>
         )}
       </div>
 
-      {/* Image */}
-      {type === 'image' && q.imageUrl && (
-        <div className="ml-7 mt-3">
-          <img
-            src={q.imageUrl}
-            alt={q.texte || 'Figure'}
-            className="max-h-72 max-w-full rounded border border-gray-200 object-contain"
-          />
-        </div>
-      )}
+      {/* Blocks */}
+      <div className="ml-6 space-y-2">
+        {q.blocks.map((block, idx) => (
+          <BlockView key={idx} block={block} />
+        ))}
+      </div>
 
-      {/* QCM options */}
-      {type === 'qcm' && (
-        <div className="ml-7 mt-2 space-y-1.5">
-          {(q.options ?? []).map((opt, i) =>
-            opt ? (
-              <div key={i} className="flex items-center gap-2.5 text-sm text-gray-700">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-gray-400 text-xs text-gray-400">
-                  {String.fromCharCode(65 + i)}
-                </span>
-                <span>{opt}</span>
-              </div>
-            ) : null
-          )}
-        </div>
-      )}
-
-      {/* Open text: lignes de réponse uniquement à l'impression */}
-      {type === 'open' && (
-        <div className="print-lines ml-7 mt-3 hidden space-y-3">
+      {/* Lignes de réponse — uniquement à l'impression et seulement s'il n'y a pas de QCM */}
+      {!hasQcm && (
+        <div className="print-lines ml-6 mt-3 hidden space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-px w-full bg-gray-300" />
           ))}
@@ -68,7 +128,6 @@ function ExerciceView({ ex, exIdx }: { ex: EvalExercice; exIdx: number }) {
   const pts = ex.questions.reduce((s, q) => s + q.points, 0);
   return (
     <div style={{ pageBreakInside: 'avoid' }}>
-      {/* Header exercice */}
       <div className="mb-4 flex items-center justify-between border-b-2 border-gray-200 pb-2">
         <h2 className="font-bold text-gray-900">
           Exercice {exIdx + 1}{ex.titre ? ` — ${ex.titre}` : ''}
@@ -88,6 +147,8 @@ function ExerciceView({ ex, exIdx }: { ex: EvalExercice; exIdx: number }) {
     </div>
   );
 }
+
+// ---------- Main page ----------
 
 export default function EvaluationDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -161,7 +222,7 @@ export default function EvaluationDetailPage() {
       </header>
 
       <main className="mx-auto max-w-4xl px-6 py-8">
-        {/* Fiche d'identité — page 1 seulement (pas de répétition, avant la table) */}
+        {/* Fiche d'identité — visible uniquement sur la page 1 */}
         <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="no-print mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700">
             <ClipboardList size={22} />
@@ -186,10 +247,10 @@ export default function EvaluationDetailPage() {
           )}
         </div>
 
-        {/* Table — thead répété automatiquement sur chaque page imprimée */}
+        {/* Table avec thead répété à chaque page à l'impression */}
         {hasContent ? (
           <table className="w-full border-collapse">
-            {/* En-tête compact — caché écran, répété sur toutes les pages imprimées */}
+            {/* En-tête compact : masqué à l'écran, répété sur toutes les pages imprimées */}
             <thead className="eval-print-thead">
               <tr>
                 <td className="border-b-2 border-gray-700 pb-3">
@@ -207,7 +268,7 @@ export default function EvaluationDetailPage() {
             <tbody>
               {exercices.map((ex, exIdx) => (
                 <tr key={ex.id}>
-                  <td className="pt-8 pb-2">
+                  <td className="pb-2 pt-8">
                     <ExerciceView ex={ex} exIdx={exIdx} />
                   </td>
                 </tr>
