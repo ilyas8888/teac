@@ -91,6 +91,23 @@ export interface Resource {
   sessionId: string;
 }
 
+export interface EvalQuestion {
+  id: string;
+  texte: string;
+  points: number;
+}
+
+export interface EvalExercice {
+  id: string;
+  titre: string;
+  enonce: string;
+  questions: EvalQuestion[];
+}
+
+export interface EvaluationContent {
+  exercices: EvalExercice[];
+}
+
 export interface EvaluationCourse {
   evaluationId: string;
   courseId: string;
