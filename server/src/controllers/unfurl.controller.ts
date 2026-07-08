@@ -93,6 +93,11 @@ function fallback(url: URL): UnfurlData {
 }
 
 export async function getUnfurl(req: AuthRequest, res: Response): Promise<void> {
+  if (typeof req.query.url !== 'string' || req.query.url.trim() === '') {
+    res.json({});
+    return;
+  }
+
   const targetUrl = parsePublicHttpUrl(req.query.url);
 
   if (!targetUrl) {

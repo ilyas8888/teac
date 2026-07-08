@@ -14,7 +14,7 @@ import type { TeacBlock, TeacPartialBlock } from '../lib/blocknoteSchema';
 interface SessionEditorWithUploadProps {
   initialContent?: TeacPartialBlock[];
   editable?: boolean;
-  editorTheme?: 'light' | 'dark';
+  slideBackground?: string;
   onChange?: (blocks: TeacBlock[]) => void;
   uploadFile?: (file: File) => Promise<string>;
 }
@@ -22,7 +22,6 @@ interface SessionEditorWithUploadProps {
 const StudioSessionEditor = SessionEditor as ComponentType<SessionEditorWithUploadProps>;
 const exportThemes: PresentOptions['theme'][] = ['white', 'black', 'night', 'moon', 'solarized', 'sky'];
 const exportTransitions: PresentOptions['transition'][] = ['slide', 'fade', 'zoom', 'convex', 'concave', 'none'];
-const DARK_THEMES = new Set<PresentOptions['theme']>(['black', 'night', 'moon']);
 
 const THEME_CANVAS: Record<PresentOptions['theme'], { canvas: string; slide: string; text: string; border: string }> = {
   white:     { canvas: '#d8d8d8', slide: '#ffffff', text: '#222222', border: '#c0c0c0' },
@@ -105,7 +104,6 @@ export default function SlideStudioPage() {
   const selectedSlide = slides[selectedSlideIndex] ?? slides[0];
   const activeSlideStart = slideStartIndexes[selectedSlideIndex] ?? 0;
   const activeBackground = getBlockBackground(content?.[activeSlideStart]);
-  const editorTheme: 'light' | 'dark' = DARK_THEMES.has(exportOptions.theme) ? 'dark' : 'light';
   const themeColors = THEME_CANVAS[exportOptions.theme];
   const slideBackground = activeBackground !== '#ffffff' ? activeBackground : themeColors.slide;
 
@@ -233,14 +231,6 @@ export default function SlideStudioPage() {
           className="min-h-0 overflow-y-auto px-8 py-6 transition-colors duration-200"
           style={{ backgroundColor: themeColors.canvas }}
         >
-          {editorTheme === 'light' && (
-            <style>{`
-              #studio-slide-canvas .bn-editor,
-              #studio-slide-canvas .bn-root.bn-container {
-                background-color: ${slideBackground} !important;
-              }
-            `}</style>
-          )}
           <div
             id="studio-slide-canvas"
             className="mx-auto max-w-4xl rounded-lg py-6 shadow-md transition-colors duration-200"
@@ -251,9 +241,9 @@ export default function SlideStudioPage() {
             }}
           >
             <StudioSessionEditor
-              key={`slide-${selectedSlideIndex}-${editorTheme}`}
+              key={`slide-${selectedSlideIndex}-${slideBackground}`}
               initialContent={currentSlideBlocks}
-              editorTheme={editorTheme}
+              slideBackground={slideBackground}
               onChange={handleSlideChange}
               uploadFile={uploadToCloudinary}
             />
