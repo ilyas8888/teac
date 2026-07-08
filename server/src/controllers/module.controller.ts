@@ -5,12 +5,12 @@ import { AuthRequest } from '../middleware/auth.middleware';
 
 const moduleSchema = z.object({
   titre: z.string().min(1).max(200),
-  courseId: z.string().uuid(),
+  courseId: z.string().min(1),
 });
 
 const reorderSchema = z.object({
-  courseId: z.string().uuid(),
-  orderedIds: z.array(z.string().cuid()),
+  courseId: z.string().min(1),
+  orderedIds: z.array(z.string().min(1)),
 });
 
 // GET /api/modules?courseId=

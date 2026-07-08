@@ -97,14 +97,14 @@ export default function CourseDetailPage() {
     enabled: !!id,
   });
 
-  const { data: rawModules = [], isLoading: modulesLoading } = useQuery<Module[]>({
+  const { data: rawModules, isLoading: modulesLoading } = useQuery<Module[]>({
     queryKey: ['modules', id],
     queryFn: () => api.get('/modules', { params: { courseId: id } }).then((r) => r.data),
     enabled: !!id,
   });
 
   useEffect(() => {
-    dispatchModule({ type: 'SET_MODULES', modules: rawModules });
+    if (rawModules) dispatchModule({ type: 'SET_MODULES', modules: rawModules });
   }, [rawModules]);
 
   const { data: sessions = [], isLoading: sessionsLoading } = useQuery<Session[]>({
