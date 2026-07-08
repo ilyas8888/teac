@@ -26,7 +26,7 @@ function makeBlock(type: BlockType): ContentBlock {
     case 'text':  return { type: 'text', content: '' };
     case 'image': return { type: 'image', url: '' };
     case 'table': return { type: 'table', headers: ['', '', ''], rows: [['', '', ''], ['', '', '']] };
-    case 'qcm':  return { type: 'qcm', options: ['', '', '', ''] };
+    case 'qcm':  return { type: 'qcm', multiple: false, options: ['', '', '', ''], correctes: [] };
   }
 }
 
@@ -168,32 +168,59 @@ function TableBlockEditor({ block, onChange, onRemove }: {
 function QcmBlockEditor({ block, onChange, onRemove }: {
   block: QcmBlock; onChange: (b: ContentBlock) => void; onRemove: () => void;
 }) {
+  function toggleCorrecte(i: number) {
+    if (block.multiple) {
+      const already = block.correctes.includes(i);
+      onChange({ ...block, correctes: already ? block.correctes.filter((c) => c !== i) : [...block.correctes, i] });
+    } else {
+      onChange({ ...block, correctes: block.correctes[0] === i ? [] : [i] });
+    }
+  }
+
+  const correctesLabel = block.correctes
+    .sort((a, b) => a - b)
+    .map((i) => String.fromCharCode(65 + i))
+    .join(', ');
+
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${BLOCK_BADGE.qcm}`}>QCM</span>
+        {/* Toggle choix unique / multiple */}
+        <button
+          type="button"
+          onClick={() => onChange({ ...block, multiple: !block.multiple, correctes: [] })}
+          className={`rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors ${block.multiple ? 'border-purple-300 bg-purple-100 text-purple-700' : 'border-gray-200 bg-gray-50 text-gray-500 hover:border-purple-200'}`}
+        >
+          {block.multiple ? 'Choix multiple' : 'Choix unique'}
+        </button>
         <button type="button" onClick={onRemove} className="ml-auto text-xs text-gray-300 hover:text-red-400">×</button>
       </div>
       <div className="space-y-1.5 pl-1">
-        {block.options.map((opt, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => onChange({ ...block, optionCorrecte: i })}
-              title="Bonne réponse"
-              className={`h-4 w-4 shrink-0 rounded-full border-2 transition-colors ${block.optionCorrecte === i ? 'border-green-500 bg-green-500' : 'border-gray-300 hover:border-green-400'}`}
-            />
-            <span className="w-4 shrink-0 text-xs font-bold text-gray-400">{String.fromCharCode(65 + i)}</span>
-            <input
-              value={opt}
-              onChange={(e) => onChange({ ...block, options: block.options.map((o, j) => j === i ? e.target.value : o) })}
-              placeholder={`Option ${String.fromCharCode(65 + i)}…`}
-              className="flex-1 rounded border border-gray-200 px-2 py-1 text-sm outline-none focus:border-purple-300"
-            />
-          </div>
-        ))}
-        {block.optionCorrecte !== undefined && (
-          <p className="pl-6 text-xs text-green-600">Bonne réponse : {String.fromCharCode(65 + block.optionCorrecte)}</p>
+        {block.options.map((opt, i) => {
+          const isCorrecte = block.correctes.includes(i);
+          return (
+            <div key={i} className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => toggleCorrecte(i)}
+                title="Bonne réponse"
+                className={`h-4 w-4 shrink-0 border-2 transition-colors ${block.multiple ? 'rounded' : 'rounded-full'} ${isCorrecte ? 'border-green-500 bg-green-500' : 'border-gray-300 hover:border-green-400'}`}
+              />
+              <span className="w-4 shrink-0 text-xs font-bold text-gray-400">{String.fromCharCode(65 + i)}</span>
+              <input
+                value={opt}
+                onChange={(e) => onChange({ ...block, options: block.options.map((o, j) => j === i ? e.target.value : o) })}
+                placeholder={`Option ${String.fromCharCode(65 + i)}…`}
+                className="flex-1 rounded border border-gray-200 px-2 py-1 text-sm outline-none focus:border-purple-300"
+              />
+            </div>
+          );
+        })}
+        {block.correctes.length > 0 && (
+          <p className="pl-6 text-xs text-green-600">
+            {block.multiple ? 'Bonnes réponses' : 'Bonne réponse'} : {correctesLabel}
+          </p>
         )}
       </div>
     </div>

@@ -94,7 +94,7 @@ export interface Resource {
 export interface TextBlock  { type: 'text';   content: string; }
 export interface ImageBlock { type: 'image';  url: string; caption?: string; }
 export interface TableBlock { type: 'table';  headers: string[]; rows: string[][]; }
-export interface QcmBlock   { type: 'qcm';   options: string[]; optionCorrecte?: number; }
+export interface QcmBlock   { type: 'qcm';   multiple?: boolean; options: string[]; correctes: number[]; }
 export type ContentBlock = TextBlock | ImageBlock | TableBlock | QcmBlock;
 export type BlockType = ContentBlock['type'];
 

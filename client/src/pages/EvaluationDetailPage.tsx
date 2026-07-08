@@ -65,16 +65,19 @@ function QcmBlockView({ block }: { block: QcmBlock }) {
     <div className="space-y-1.5">
       {block.options.map((opt, i) => {
         if (!opt) return null;
-        const isCorrect = block.optionCorrecte === i;
         return (
-          <div key={i} className={`flex items-center gap-2.5 text-sm ${isCorrect ? 'print:font-semibold' : ''}`}>
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-gray-400 text-xs text-gray-500">
+          <div key={i} className="flex items-center gap-2.5 text-sm">
+            {/* Rond (choix unique) ou carré (choix multiple) */}
+            <span className={`flex h-5 w-5 shrink-0 items-center justify-center border-2 border-gray-400 text-xs text-gray-500 ${block.multiple ? 'rounded' : 'rounded-full'}`}>
               {String.fromCharCode(65 + i)}
             </span>
             <span className="text-gray-700">{opt}</span>
           </div>
         );
       })}
+      {block.multiple && (
+        <p className="pl-7 text-xs italic text-gray-400">Plusieurs réponses possibles</p>
+      )}
     </div>
   );
 }
