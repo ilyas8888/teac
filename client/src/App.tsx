@@ -8,13 +8,13 @@ import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import CoursesPage from './pages/CoursesPage';
 import CourseDetailPage from './pages/CourseDetailPage';
+import CourseCreatePage from './pages/CourseCreatePage';
 import StudentsPage from './pages/StudentsPage';
 
 // Heavy: pulls in BlockNote — split out of the main bundle
 const SessionEditorPage = lazy(() => import('./pages/SessionEditorPage'));
 const PresentationCustomizePage = lazy(() => import('./pages/PresentationCustomizePage'));
 const SlideStudioPage = lazy(() => import('./pages/SlideStudioPage'));
-const CourseCreatePage = lazy(() => import('./pages/CourseCreatePage'));
 import EvaluationsPage from './pages/EvaluationsPage';
 import AIAssistantPage from './pages/AIAssistantPage';
 import MessagesPage from './pages/MessagesPage';
@@ -46,9 +46,9 @@ function AppRoutes() {
       <Route path="/courses/:courseId/sessions/:sessionId/slide-studio"
         element={<ProtectedRoute><Suspense fallback={<div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>}><SlideStudioPage /></Suspense></ProtectedRoute>} />
       <Route path="/courses/new"
-        element={<ProtectedRoute><Suspense fallback={<div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>}><CourseCreatePage /></Suspense></ProtectedRoute>} />
+        element={<ProtectedRoute><CourseCreatePage /></ProtectedRoute>} />
       <Route path="/courses/:id/edit"
-        element={<ProtectedRoute><Suspense fallback={<div className="flex justify-center py-20"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>}><CourseCreatePage /></Suspense></ProtectedRoute>} />
+        element={<ProtectedRoute><CourseCreatePage /></ProtectedRoute>} />
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<DashboardPage />} />
         <Route path="classes" element={<ClassesPage />} />

@@ -31,7 +31,7 @@ export const getCourse = async (req: AuthRequest, res: Response): Promise<void> 
   const course = await prisma.course.findFirst({
     where: { id: req.params.id, teacherId },
     include: {
-      modules: { orderBy: [{ ordre: 'asc' }, { createdAt: 'asc' }] },
+      modules: { orderBy: { ordre: 'asc' } },
       sessions: { orderBy: { date: 'asc' } },
       evaluations: true,
     },

@@ -1,13 +1,13 @@
-import { useReducer, useState } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Plus, Layers, Clock, Users, Calendar, Target, FileText,
   Trash2, Pencil, ChevronDown, X, Link2, File, Image, Video, Paperclip,
-  ExternalLink, BookOpen, MoreVertical, ChevronUp,
+  ExternalLink, BookOpen, ChevronUp,
 } from 'lucide-react';
 import api from '../services/api';
-import type { Course, Session, Class, Resource, Module as CourseModule } from '../types';
+import type { Course, Session, Class, Resource, Module } from '../types';
 import { courseTheme } from '../lib/courseTheme';
 import ImageUpload from '../components/ImageUpload';
 import {
@@ -28,57 +28,52 @@ const resourceIcon = (type: Resource['type']) =>
 const emptySession = { titre: '', objectifs: '', contenu: '', image: '', duree: 120, date: '', classId: '', moduleId: '' };
 
 type ModuleState = {
-  expandedIds: string[];
-  menuId: string | null;
-  renamingId: string | null;
-  draftTitle: string;
-  editingImageId: string | null;
+  modules: Module[];
+  addingModule: boolean;
+  newTitle: string;
+  editingId: string | null;
+  editingTitle: string;
 };
 
 type ModuleAction =
-  | { type: 'toggle'; id: string }
-  | { type: 'openMenu'; id: string | null }
-  | { type: 'startRename'; id: string; title: string }
-  | { type: 'setDraftTitle'; title: string }
-  | { type: 'stopRename' }
-  | { type: 'expand'; id: string }
-  | { type: 'startImageEdit'; id: string }
-  | { type: 'stopImageEdit' };
+  | { type: 'SET_MODULES'; modules: Module[] }
+  | { type: 'START_ADD' }
+  | { type: 'SET_NEW_TITLE'; title: string }
+  | { type: 'CANCEL_ADD' }
+  | { type: 'START_RENAME'; id: string; title: string }
+  | { type: 'SET_RENAME_TITLE'; title: string }
+  | { type: 'CANCEL_RENAME' }
+  | { type: 'OPTIMISTIC_REORDER'; modules: Module[] };
 
 const initialModuleState: ModuleState = {
-  expandedIds: [],
-  menuId: null,
-  renamingId: null,
-  draftTitle: '',
-  editingImageId: null,
+  modules: [],
+  addingModule: false,
+  newTitle: '',
+  editingId: null,
+  editingTitle: '',
 };
 
 function moduleReducer(state: ModuleState, action: ModuleAction): ModuleState {
   switch (action.type) {
-    case 'toggle':
+    case 'SET_MODULES':
+      return { ...state, modules: action.modules };
+    case 'START_ADD':
+      return { ...state, addingModule: true, newTitle: '' };
+    case 'SET_NEW_TITLE':
+      return { ...state, newTitle: action.title };
+    case 'CANCEL_ADD':
+      return { ...state, addingModule: false, newTitle: '' };
+    case 'START_RENAME':
+      return { ...state, editingId: action.id, editingTitle: action.title };
+    case 'SET_RENAME_TITLE':
+      return { ...state, editingTitle: action.title };
+    case 'CANCEL_RENAME':
+      return { ...state, editingId: null, editingTitle: '' };
+    case 'OPTIMISTIC_REORDER':
       return {
         ...state,
-        expandedIds: state.expandedIds.includes(action.id)
-          ? state.expandedIds.filter((id) => id !== action.id)
-          : [...state.expandedIds, action.id],
-        menuId: null,
+        modules: action.modules,
       };
-    case 'openMenu':
-      return { ...state, menuId: action.id };
-    case 'startRename':
-      return { ...state, renamingId: action.id, draftTitle: action.title, menuId: null };
-    case 'setDraftTitle':
-      return { ...state, draftTitle: action.title };
-    case 'stopRename':
-      return { ...state, renamingId: null, draftTitle: '' };
-    case 'expand':
-      return state.expandedIds.includes(action.id)
-        ? state
-        : { ...state, expandedIds: [...state.expandedIds, action.id] };
-    case 'startImageEdit':
-      return { ...state, editingImageId: action.id, menuId: null };
-    case 'stopImageEdit':
-      return { ...state, editingImageId: null };
     default:
       return state;
   }
@@ -91,9 +86,10 @@ export default function CourseDetailPage() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Session | null>(null);
   const [form, setForm] = useState(emptySession);
+  const [newSessionModuleId, setNewSessionModuleId] = useState('');
+  const [expandedModuleIds, setExpandedModuleIds] = useState<string[]>([]);
   const [expandedSession, setExpandedSession] = useState<string | null>(null);
   const [moduleState, dispatchModule] = useReducer(moduleReducer, initialModuleState);
-  const [newModuleTitle, setNewModuleTitle] = useState('');
 
   const { data: course, isLoading: courseLoading } = useQuery<Course>({
     queryKey: ['course', id],
@@ -101,11 +97,15 @@ export default function CourseDetailPage() {
     enabled: !!id,
   });
 
-  const { data: modules = [], isLoading: modulesLoading } = useQuery<CourseModule[]>({
+  const { data: rawModules = [], isLoading: modulesLoading } = useQuery<Module[]>({
     queryKey: ['modules', id],
     queryFn: () => api.get('/modules', { params: { courseId: id } }).then((r) => r.data),
     enabled: !!id,
   });
+
+  useEffect(() => {
+    dispatchModule({ type: 'SET_MODULES', modules: rawModules });
+  }, [rawModules]);
 
   const { data: sessions = [], isLoading: sessionsLoading } = useQuery<Session[]>({
     queryKey: ['sessions', id],
@@ -130,7 +130,7 @@ export default function CourseDetailPage() {
       ...data,
       courseId: id,
       duree: Number(data.duree),
-      moduleId: data.moduleId || null,
+      moduleId: newSessionModuleId || null,
       image: data.image || null,
     }),
     onSuccess: () => { invalidate(); closeForm(); },
@@ -140,7 +140,7 @@ export default function CourseDetailPage() {
       api.put(`/sessions/${sid}`, {
         ...data,
         duree: Number(data.duree),
-        moduleId: data.moduleId || null,
+        moduleId: newSessionModuleId || null,
         image: data.image || null,
       }),
     onSuccess: () => { invalidate(); closeForm(); },
@@ -153,63 +153,44 @@ export default function CourseDetailPage() {
   const createModule = useMutation({
     mutationFn: (titre: string) => api.post('/modules', { titre, courseId: id }),
     onSuccess: (response) => {
-      setNewModuleTitle('');
-      dispatchModule({ type: 'expand', id: response.data.id });
-      invalidate();
+      dispatchModule({ type: 'CANCEL_ADD' });
+      setExpandedModuleIds((current) => current.includes(response.data.id) ? current : [...current, response.data.id]);
+      qc.invalidateQueries({ queryKey: ['modules', id] });
     },
   });
 
-  const renameModule = useMutation({
+  const updateModule = useMutation({
     mutationFn: ({ moduleId, titre }: { moduleId: string; titre: string }) => api.put(`/modules/${moduleId}`, { titre }),
     onSuccess: () => {
-      dispatchModule({ type: 'stopRename' });
-      invalidate();
-    },
-  });
-
-  const updateModuleImage = useMutation({
-    mutationFn: ({ moduleId, image }: { moduleId: string; image: string | null }) =>
-      api.put(`/modules/${moduleId}`, { image }),
-    onSuccess: () => {
-      dispatchModule({ type: 'stopImageEdit' });
-      invalidate();
+      dispatchModule({ type: 'CANCEL_RENAME' });
+      qc.invalidateQueries({ queryKey: ['modules', id] });
     },
   });
 
   const deleteModule = useMutation({
     mutationFn: (moduleId: string) => api.delete(`/modules/${moduleId}`),
-    onSuccess: invalidate,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['modules', id] }),
   });
 
   const reorderModules = useMutation({
-    mutationFn: (orderedIds: string[]) => api.post('/modules/reorder', { courseId: id, moduleIds: orderedIds }),
-    onMutate: async (orderedIds) => {
-      await qc.cancelQueries({ queryKey: ['modules', id] });
-      const previous = qc.getQueryData<CourseModule[]>(['modules', id]);
-      if (previous) {
-        const byId = new Map(previous.map((module) => [module.id, module]));
-        qc.setQueryData<CourseModule[]>(['modules', id], orderedIds
-          .map((moduleId, ordre) => ({ ...byId.get(moduleId)!, ordre }))
-          .filter(Boolean));
-      }
-      return { previous };
-    },
-    onError: (_error, _ids, context) => {
-      if (context?.previous) qc.setQueryData(['modules', id], context.previous);
-    },
+    mutationFn: (orderedIds: string[]) => api.put('/modules/reorder', { courseId: id, orderedIds }),
     onSettled: () => qc.invalidateQueries({ queryKey: ['modules', id] }),
   });
 
   const moveSession = useMutation({
     mutationFn: ({ sessionId, moduleId }: { sessionId: string; moduleId: string | null }) =>
       api.put(`/sessions/${sessionId}`, { moduleId }),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['course', id] });
+      qc.invalidateQueries({ queryKey: ['sessions', id] });
+    },
   });
 
-  const closeForm = () => { setShowForm(false); setEditing(null); setForm(emptySession); };
+  const closeForm = () => { setShowForm(false); setEditing(null); setForm(emptySession); setNewSessionModuleId(''); };
   const openCreate = (moduleId = '') => {
     setEditing(null);
     setForm({ ...emptySession, classId: classes[0]?.id || '', moduleId });
+    setNewSessionModuleId(moduleId);
     setShowForm(true);
   };
   const openEdit = (session: Session) => {
@@ -224,6 +205,7 @@ export default function CourseDetailPage() {
       classId: session.classId,
       moduleId: session.moduleId || '',
     });
+    setNewSessionModuleId(session.moduleId || '');
     setShowForm(true);
   };
   const submit = () => {
@@ -247,7 +229,8 @@ export default function CourseDetailPage() {
   const accentStyle = course.couleur ? { backgroundColor: course.couleur } : undefined;
   const totalMinutes = sessions.reduce((sum, s) => sum + s.duree, 0);
   const pending = create.isPending || update.isPending;
-  const sortedModules = [...modules].sort((a, b) => a.ordre - b.ordre || a.createdAt.localeCompare(b.createdAt));
+  const sortedModules = [...moduleState.modules].sort((a, b) =>
+    a.ordre - b.ordre || (a.createdAt ?? '').localeCompare(b.createdAt ?? ''));
   const sessionsByModule = new Map<string, Session[]>();
   const unclassifiedSessions: Session[] = [];
 
@@ -266,19 +249,37 @@ export default function CourseDetailPage() {
   const upcomingCount = sessions.filter((s) => sessionStatus(s.date) !== 'past').length;
   const loadingStructure = sessionsLoading || modulesLoading;
 
-  function moveModule(moduleId: string, direction: -1 | 1) {
+  function handleReorder(moduleId: string, direction: -1 | 1) {
     const index = sortedModules.findIndex((module) => module.id === moduleId);
     const nextIndex = index + direction;
     if (index < 0 || nextIndex < 0 || nextIndex >= sortedModules.length) return;
-    const orderedIds = sortedModules.map((module) => module.id);
-    [orderedIds[index], orderedIds[nextIndex]] = [orderedIds[nextIndex], orderedIds[index]];
+    const nextModules = [...sortedModules];
+    [nextModules[index], nextModules[nextIndex]] = [nextModules[nextIndex], nextModules[index]];
+    const orderedIds = nextModules.map((module) => module.id);
+    dispatchModule({
+      type: 'OPTIMISTIC_REORDER',
+      modules: nextModules.map((module, ordre) => ({ ...module, ordre })),
+    });
     reorderModules.mutate(orderedIds);
   }
 
-  function submitNewModule() {
-    const title = newModuleTitle.trim();
+  function handleAddModule() {
+    const title = moduleState.newTitle.trim();
     if (!title) return;
     createModule.mutate(title);
+  }
+
+  function handleRenameModule(moduleId: string) {
+    const title = moduleState.editingTitle.trim();
+    if (!title) return;
+    updateModule.mutate({ moduleId, titre: title });
+  }
+
+  function toggleModule(moduleId: string) {
+    setExpandedModuleIds((current) =>
+      current.includes(moduleId)
+        ? current.filter((id) => id !== moduleId)
+        : [...current, moduleId]);
   }
 
   return (
@@ -326,7 +327,7 @@ export default function CourseDetailPage() {
           </div>
           <div className="flex flex-wrap gap-6 mt-6 pt-5 border-t border-gray-100 text-sm">
             <Metric icon={<Layers size={16} className="text-indigo-600" />} value={sessions.length} label="séances" />
-            <Metric icon={<BookOpen size={16} className="text-sky-600" />} value={modules.length} label="modules" />
+            <Metric icon={<BookOpen size={16} className="text-sky-600" />} value={sortedModules.length} label="modules" />
             <Metric icon={<Clock size={16} className="text-emerald-600" />} value={formatDuration(totalMinutes)} label="au total" />
             <Metric icon={<Calendar size={16} className="text-amber-600" />} value={upcomingCount} label="à venir" />
           </div>
@@ -341,22 +342,9 @@ export default function CourseDetailPage() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-4">
-        <div className="flex gap-2">
-          <input value={newModuleTitle} onChange={(e) => setNewModuleTitle(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') submitNewModule(); }}
-            placeholder="Titre du nouveau module"
-            className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-          <button onClick={submitNewModule} disabled={!newModuleTitle.trim() || createModule.isPending}
-            className="inline-flex items-center gap-1.5 bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
-            <Plus size={15} /> Ajouter
-          </button>
-        </div>
-      </div>
-
       {loadingStructure ? (
         <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" /></div>
-      ) : sessions.length === 0 && modules.length === 0 ? (
+      ) : sessions.length === 0 && sortedModules.length === 0 ? (
         <div className="text-center py-16 text-gray-400 bg-white rounded-xl border border-dashed border-gray-300">
           <Layers size={40} className="mx-auto mb-3 opacity-30" />
           <p className="mb-4">Aucune séance planifiée pour ce cours.</p>
@@ -376,17 +364,18 @@ export default function CourseDetailPage() {
               total={sortedModules.length}
               state={moduleState}
               dispatch={dispatchModule}
+              isExpanded={expandedModuleIds.includes(module.id)}
+              onToggle={() => toggleModule(module.id)}
               expandedSession={expandedSession}
               setExpandedSession={setExpandedSession}
               onCreateSession={() => openCreate(module.id)}
-              onRename={(title) => renameModule.mutate({ moduleId: module.id, titre: title })}
+              onRename={() => handleRenameModule(module.id)}
               onDelete={() => { if (confirm(`Supprimer le module « ${module.titre} » ? Les séances seront conservées sans module.`)) deleteModule.mutate(module.id); }}
-              onMove={(direction) => moveModule(module.id, direction)}
+              onMove={(direction) => handleReorder(module.id, direction)}
               onEditSession={openEdit}
               onDeleteSession={(sessionId) => remove.mutate(sessionId)}
               onOpenContent={(session) => navigate(`/courses/${id}/sessions/${session.id}`)}
               onMoveSession={(sessionId, moduleId) => moveSession.mutate({ sessionId, moduleId })}
-              onImageChange={(image) => updateModuleImage.mutate({ moduleId: module.id, image })}
             />
           ))}
 
@@ -408,6 +397,33 @@ export default function CourseDetailPage() {
               </div>
             </div>
           )}
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+            {moduleState.addingModule ? (
+              <div className="flex gap-2">
+                <input value={moduleState.newTitle} onChange={(e) => dispatchModule({ type: 'SET_NEW_TITLE', title: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleAddModule();
+                    if (e.key === 'Escape') dispatchModule({ type: 'CANCEL_ADD' });
+                  }}
+                  autoFocus
+                  placeholder="Titre du nouveau module"
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <button onClick={handleAddModule} disabled={!moduleState.newTitle.trim() || createModule.isPending}
+                  className="inline-flex items-center gap-1.5 bg-indigo-900 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-indigo-800 disabled:opacity-50">
+                  Ajouter
+                </button>
+                <button onClick={() => dispatchModule({ type: 'CANCEL_ADD' })}
+                  className="border border-gray-300 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50">
+                  Annuler
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => dispatchModule({ type: 'START_ADD' })}
+                className="inline-flex items-center gap-2 text-indigo-700 hover:text-indigo-900 text-sm font-medium">
+                <Plus size={16} /> Ajouter un module
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -458,7 +474,7 @@ export default function CourseDetailPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Module</label>
-                  <select value={form.moduleId} onChange={(e) => setForm({ ...form, moduleId: e.target.value })}
+                  <select value={newSessionModuleId} onChange={(e) => setNewSessionModuleId(e.target.value)}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     <option value="">Sans module</option>
                     {sortedModules.map((module) => <option key={module.id} value={module.id}>{module.titre}</option>)}
@@ -522,56 +538,48 @@ function Metric({ icon, value, label }: { icon: React.ReactNode; value: React.Re
   );
 }
 
-function ModuleRow({ module, sessions, modules, index, total, state, dispatch, expandedSession, setExpandedSession, onCreateSession, onRename, onDelete, onMove, onEditSession, onDeleteSession, onOpenContent, onMoveSession, onImageChange }: {
-  module: CourseModule;
+function ModuleRow({ module, sessions, modules, index, total, state, dispatch, isExpanded, onToggle, expandedSession, setExpandedSession, onCreateSession, onRename, onDelete, onMove, onEditSession, onDeleteSession, onOpenContent, onMoveSession }: {
+  module: Module;
   sessions: Session[];
-  modules: CourseModule[];
+  modules: Module[];
   index: number;
   total: number;
   state: ModuleState;
   dispatch: React.Dispatch<ModuleAction>;
+  isExpanded: boolean;
+  onToggle: () => void;
   expandedSession: string | null;
   setExpandedSession: (id: string | null) => void;
   onCreateSession: () => void;
-  onRename: (title: string) => void;
+  onRename: () => void;
   onDelete: () => void;
   onMove: (direction: -1 | 1) => void;
   onEditSession: (session: Session) => void;
   onDeleteSession: (id: string) => void;
   onOpenContent: (session: Session) => void;
   onMoveSession: (sessionId: string, moduleId: string | null) => void;
-  onImageChange: (image: string | null) => void;
 }) {
-  const isExpanded = state.expandedIds.includes(module.id);
-  const isRenaming = state.renamingId === module.id;
-  const isEditingImage = state.editingImageId === module.id;
-  const menuOpen = state.menuId === module.id;
+  const isRenaming = state.editingId === module.id;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-visible">
-      {module.image && !isEditingImage && (
-        <div className="relative h-24 w-full overflow-hidden rounded-t-xl">
-          <img src={module.image} alt="" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/30" />
-        </div>
-      )}
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="flex items-center gap-3 p-4">
-        <button onClick={() => dispatch({ type: 'toggle', id: module.id })}
+        <button onClick={onToggle}
           className="text-gray-400 hover:text-gray-700">
           <ChevronDown size={18} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
         </button>
 
         <div className="flex-1 min-w-0">
           {isRenaming ? (
-            <input value={state.draftTitle} onChange={(e) => dispatch({ type: 'setDraftTitle', title: e.target.value })}
+            <input value={state.editingTitle} onChange={(e) => dispatch({ type: 'SET_RENAME_TITLE', title: e.target.value })}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && state.draftTitle.trim()) onRename(state.draftTitle.trim());
-                if (e.key === 'Escape') dispatch({ type: 'stopRename' });
+                if (e.key === 'Enter') onRename();
+                if (e.key === 'Escape') dispatch({ type: 'CANCEL_RENAME' });
               }}
               autoFocus
               className="w-full border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           ) : (
-            <button onClick={() => dispatch({ type: 'toggle', id: module.id })} className="text-left">
+            <button onClick={() => dispatch({ type: 'START_RENAME', id: module.id, title: module.titre })} className="text-left">
               <h3 className="font-semibold text-gray-900 truncate">{module.titre}</h3>
               <p className="text-xs text-gray-400">{sessions.length} séance{sessions.length > 1 ? 's' : ''}</p>
             </button>
@@ -580,16 +588,16 @@ function ModuleRow({ module, sessions, modules, index, total, state, dispatch, e
 
         {isRenaming ? (
           <div className="flex gap-2">
-            <button onClick={() => state.draftTitle.trim() && onRename(state.draftTitle.trim())}
-              className="text-sm text-indigo-700 font-medium">Enregistrer</button>
-            <button onClick={() => dispatch({ type: 'stopRename' })}
+            <button onClick={onRename} disabled={!state.editingTitle.trim()}
+              className="text-sm text-indigo-700 font-medium disabled:opacity-50">Enregistrer</button>
+            <button onClick={() => dispatch({ type: 'CANCEL_RENAME' })}
               className="text-sm text-gray-500">Annuler</button>
           </div>
         ) : (
-          <div className="flex items-center gap-1 relative">
-            <button onClick={onCreateSession}
-              className="hidden sm:inline-flex items-center gap-1.5 text-sm text-indigo-700 hover:text-indigo-900 font-medium px-2 py-1">
-              <Plus size={14} /> Séance
+          <div className="flex items-center gap-1">
+            <button onClick={() => dispatch({ type: 'START_RENAME', id: module.id, title: module.titre })}
+              className="text-gray-400 hover:text-indigo-700 p-1" title="Renommer">
+              <Pencil size={16} />
             </button>
             <button onClick={() => onMove(-1)} disabled={index === 0}
               className="text-gray-400 hover:text-gray-700 disabled:opacity-30 p-1" title="Monter">
@@ -599,38 +607,13 @@ function ModuleRow({ module, sessions, modules, index, total, state, dispatch, e
               className="text-gray-400 hover:text-gray-700 disabled:opacity-30 p-1" title="Descendre">
               <ChevronDown size={16} />
             </button>
-            <button onClick={() => dispatch({ type: 'openMenu', id: menuOpen ? null : module.id })}
-              className="text-gray-400 hover:text-gray-700 p-1">
-              <MoreVertical size={16} />
+            <button onClick={onDelete}
+              className="text-gray-400 hover:text-red-600 p-1" title="Supprimer">
+              <Trash2 size={16} />
             </button>
-            {menuOpen && (
-              <div className="absolute right-0 top-8 z-10 w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-1">
-                <button onClick={() => dispatch({ type: 'startRename', id: module.id, title: module.titre })}
-                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Renommer</button>
-                <button onClick={() => dispatch({ type: 'startImageEdit', id: module.id })}
-                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                  {module.image ? 'Modifier l\'image' : 'Ajouter une image'}
-                </button>
-                <button onClick={onDelete}
-                  className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50">Supprimer</button>
-              </div>
-            )}
           </div>
         )}
       </div>
-
-      {isEditingImage && (
-        <div className="border-t border-gray-100 px-4 pb-4">
-          <ImageUpload
-            label=""
-            value={module.image}
-            onChange={(url) => onImageChange(url)}
-            aspectRatio="wide"
-          />
-          <button onClick={() => dispatch({ type: 'stopImageEdit' })}
-            className="mt-2 text-xs text-gray-500 hover:text-gray-700">Fermer</button>
-        </div>
-      )}
 
       {isExpanded && (
         <div className="border-t border-gray-100 p-4 space-y-3">
@@ -651,6 +634,10 @@ function ModuleRow({ module, sessions, modules, index, total, state, dispatch, e
               />
             ))
           )}
+          <button onClick={onCreateSession}
+            className="inline-flex items-center gap-1.5 text-sm text-indigo-700 hover:text-indigo-900 font-medium">
+            <Plus size={14} /> Nouvelle sÃ©ance
+          </button>
         </div>
       )}
     </div>
@@ -661,7 +648,7 @@ function SessionCard({ session, muted, isOpen, modules, onToggle, onEdit, onDele
   session: Session;
   muted?: boolean;
   isOpen: boolean;
-  modules?: CourseModule[];
+  modules?: Module[];
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -737,7 +724,7 @@ function SessionCard({ session, muted, isOpen, modules, onToggle, onEdit, onDele
           <div className="flex flex-wrap gap-2 pt-2">
             <button onClick={onOpenContent}
               className="flex items-center gap-1.5 text-sm font-medium text-white bg-indigo-900 hover:bg-indigo-800 rounded-lg px-3 py-1.5 transition-colors">
-              <FileText size={14} /> {hasContent ? 'Ouvrir le contenu' : 'Rédiger le contenu'}
+              <FileText size={14} /> Voir
             </button>
             <button onClick={onEdit}
               className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-indigo-700 border border-gray-200 hover:border-indigo-200 rounded-lg px-3 py-1.5 transition-colors">

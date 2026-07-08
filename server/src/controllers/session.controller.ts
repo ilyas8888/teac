@@ -13,7 +13,7 @@ const sessionSchema = z.object({
   date: z.string(),
   courseId: z.string().uuid(),
   classId: z.string().uuid(),
-  moduleId: z.string().optional().nullable(),
+  moduleId: z.string().cuid().optional().nullable(),
 });
 
 const ensureSessionRelations = async (

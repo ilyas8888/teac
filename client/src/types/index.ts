@@ -59,7 +59,7 @@ export interface Module {
   image?: string | null;
   courseId: string;
   sessions?: Session[];
-  createdAt: string;
+  createdAt?: string;
   _count?: { sessions: number };
 }
 
@@ -75,7 +75,7 @@ export interface Session {
   courseId: string;
   classId: string;
   moduleId?: string | null;
-  module?: Module | null;
+  module?: { id: string; titre: string };
   course?: { nom: string; matiere?: string };
   class?: { nom: string; groupe?: string };
   resources?: Resource[];
