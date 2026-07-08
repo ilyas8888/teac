@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, ClipboardList } from 'lucide-react';
@@ -73,26 +73,45 @@ function TextBlockEditor({ block, onChange, onRemove }: {
 function ImageBlockEditor({ block, onChange, onRemove }: {
   block: ImageBlock; onChange: (b: ContentBlock) => void; onRemove: () => void;
 }) {
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => onChange({ ...block, url: reader.result as string });
+    reader.readAsDataURL(file);
+  }
+
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
         <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${BLOCK_BADGE.image}`}>Image</span>
         <button type="button" onClick={onRemove} className="ml-auto text-xs text-gray-300 hover:text-red-400">×</button>
       </div>
-      <input
-        value={block.url}
-        onChange={(e) => onChange({ ...block, url: e.target.value })}
-        placeholder="URL de l'image (https://…)"
-        className="w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm outline-none focus:border-emerald-300"
-      />
-      {block.url && (
-        <img
-          src={block.url}
-          alt="aperçu"
-          className="max-h-48 rounded border border-gray-200 object-contain"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-        />
+
+      {block.url ? (
+        <div className="relative">
+          <img
+            src={block.url}
+            alt="aperçu"
+            className="max-h-56 w-full rounded-lg border border-gray-200 object-contain bg-gray-50"
+          />
+          <button
+            type="button"
+            onClick={() => onChange({ ...block, url: '' })}
+            className="absolute right-2 top-2 rounded-full bg-white/80 px-2 py-0.5 text-xs text-gray-500 shadow hover:bg-white hover:text-red-500"
+          >
+            Changer
+          </button>
+        </div>
+      ) : (
+        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-emerald-200 bg-emerald-50/50 py-6 text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span className="text-sm font-medium">Choisir une image depuis votre machine</span>
+          <span className="text-xs text-emerald-400">PNG, JPG, GIF, SVG…</span>
+          <input type="file" accept="image/*" onChange={handleFile} className="hidden" />
+        </label>
       )}
+
       <input
         value={block.caption ?? ''}
         onChange={(e) => onChange({ ...block, caption: e.target.value })}
