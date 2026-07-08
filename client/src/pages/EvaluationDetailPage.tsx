@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Calendar, ClipboardList, Pencil, Printer } from 'lucide-react';
+import { ArrowLeft, Calendar, ClipboardList, Pencil, Printer, ScanLine } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -8,6 +8,7 @@ import type {
   Evaluation, EvaluationContent, EvalExercice, EvalQuestion,
   ContentBlock, TextBlock, ImageBlock, TableBlock, QcmBlock,
 } from '../types';
+import { TABLE, rowCenterY, rowHeight, type QcmRow } from '../utils/omr';
 
 // ---------- Block renderer ----------
 
@@ -39,7 +40,7 @@ function TableBlockView({ block }: { block: TableBlock }) {
           <tr className="bg-gray-100">
             {block.headers.map((h, i) => (
               <th key={i} className="border border-gray-200 px-3 py-1.5 text-left text-xs font-semibold text-gray-700">
-                {h || ' '}
+                {h || ' '}
               </th>
             ))}
           </tr>
@@ -49,7 +50,7 @@ function TableBlockView({ block }: { block: TableBlock }) {
             <tr key={ri} className={ri % 2 === 0 ? '' : 'bg-gray-50'}>
               {row.map((cell, ci) => (
                 <td key={ci} className="border border-gray-200 px-3 py-1.5 text-gray-700">
-                  {cell || ' '}
+                  {cell || ' '}
                 </td>
               ))}
             </tr>
@@ -67,7 +68,6 @@ function QcmBlockView({ block }: { block: QcmBlock }) {
         if (!opt) return null;
         return (
           <div key={i} className="flex items-center gap-2.5 text-sm">
-            {/* Rond (choix unique) ou carré (choix multiple) */}
             <span className={`flex h-5 w-5 shrink-0 items-center justify-center border-2 border-gray-400 text-xs text-gray-500 ${block.multiple ? 'rounded' : 'rounded-full'}`}>
               {String.fromCharCode(65 + i)}
             </span>
@@ -94,7 +94,6 @@ function BlockView({ block }: { block: ContentBlock }) {
 
 function QuestionView({ q, exIdx, qIdx }: { q: EvalQuestion; exIdx: number; qIdx: number }) {
   const hasQcm = q.blocks.some((b) => b.type === 'qcm');
-
   return (
     <div className="mb-5">
       <div className="mb-2 flex items-center gap-2">
@@ -107,20 +106,12 @@ function QuestionView({ q, exIdx, qIdx }: { q: EvalQuestion; exIdx: number; qIdx
           </span>
         )}
       </div>
-
-      {/* Blocks */}
       <div className="ml-6 space-y-2">
-        {q.blocks.map((block, idx) => (
-          <BlockView key={idx} block={block} />
-        ))}
+        {q.blocks.map((block, idx) => <BlockView key={idx} block={block} />)}
       </div>
-
-      {/* Lignes de réponse — uniquement à l'impression et seulement s'il n'y a pas de QCM */}
       {!hasQcm && (
         <div className="print-lines ml-6 mt-3 hidden space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-px w-full bg-gray-300" />
-          ))}
+          {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-px w-full bg-gray-300" />)}
         </div>
       )}
     </div>
@@ -132,22 +123,98 @@ function ExerciceView({ ex, exIdx }: { ex: EvalExercice; exIdx: number }) {
   return (
     <div style={{ pageBreakInside: 'avoid' }}>
       <div className="mb-4 flex items-center justify-between border-b-2 border-gray-200 pb-2">
-        <h2 className="font-bold text-gray-900">
-          Exercice {exIdx + 1}{ex.titre ? ` — ${ex.titre}` : ''}
-        </h2>
-        {pts > 0 && (
-          <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-sm font-semibold text-indigo-700">
-            {pts} pts
-          </span>
-        )}
+        <h2 className="font-bold text-gray-900">Exercice {exIdx + 1}{ex.titre ? ` — ${ex.titre}` : ''}</h2>
+        {pts > 0 && <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-sm font-semibold text-indigo-700">{pts} pts</span>}
       </div>
-      {ex.enonce && (
-        <p className="mb-4 whitespace-pre-wrap text-sm leading-relaxed text-gray-700">{ex.enonce}</p>
-      )}
-      {ex.questions.map((q, qIdx) => (
-        <QuestionView key={q.id} q={q} exIdx={exIdx} qIdx={qIdx} />
-      ))}
+      {ex.enonce && <p className="mb-4 whitespace-pre-wrap text-sm leading-relaxed text-gray-700">{ex.enonce}</p>}
+      {ex.questions.map((q, qIdx) => <QuestionView key={q.id} q={q} exIdx={exIdx} qIdx={qIdx} />)}
     </div>
+  );
+}
+
+// ---------- Feuille de réponses (SVG, impression uniquement) ----------
+
+function AnswerSheetSvg({ evaluation, qcmRows }: { evaluation: Evaluation; qcmRows: QcmRow[] }) {
+  const n    = qcmRows.length;
+  const rh   = rowHeight(n);
+  const date = format(new Date(evaluation.date), 'dd/MM/yyyy');
+
+  // Colonnes affichées : au plus 5 (A–E), limitées au max d'options de toutes les questions
+  const maxOpts = Math.min(5, Math.max(...qcmRows.map(r => r.options.filter(Boolean).length)));
+  const optLabels = ['A', 'B', 'C', 'D', 'E'].slice(0, maxOpts);
+
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 794 1123" style={{ width: '100%', height: 'auto', display: 'block', fontFamily: 'Arial, sans-serif' }}>
+
+      {/* ── Repères de coin (carrés noirs 20×20 px) ── */}
+      <rect x="15"  y="15"   width="20" height="20" fill="black" />
+      <rect x="759" y="15"   width="20" height="20" fill="black" />
+      <rect x="15"  y="1088" width="20" height="20" fill="black" />
+      <rect x="759" y="1088" width="20" height="20" fill="black" />
+
+      {/* ── En-tête ── */}
+      <text x="397" y="60"  textAnchor="middle" fontSize="15" fontWeight="bold">FEUILLE DE RÉPONSES QCM</text>
+      <text x="397" y="84"  textAnchor="middle" fontSize="12">{evaluation.titre}</text>
+      <text x="397" y="104" textAnchor="middle" fontSize="10" fill="#666">{date} — Barème : {evaluation.bareme} pts</text>
+
+      {/* ── Champs élève ── */}
+      <text x="50"  y="140" fontSize="11">Nom :</text>
+      <line x1="88"  y1="142" x2="290" y2="142" stroke="#000" strokeWidth="0.8" />
+      <text x="300" y="140" fontSize="11">Prénom :</text>
+      <line x1="348" y1="142" x2="540" y2="142" stroke="#000" strokeWidth="0.8" />
+      <text x="550" y="140" fontSize="11">Classe :</text>
+      <line x1="590" y1="142" x2="744" y2="142" stroke="#000" strokeWidth="0.8" />
+
+      {/* ── Instruction ── */}
+      <text x="397" y="168" textAnchor="middle" fontSize="9" fill="#555">
+        Noircissez entièrement la case de votre choix — ne faites pas de croix ni de crochet
+      </text>
+
+      {/* ── Ligne de séparation ── */}
+      <line x1="40" y1="178" x2="754" y2="178" stroke="#000" strokeWidth="1" />
+
+      {/* ── En-tête de table ── */}
+      <text x={TABLE.LABEL_X}  y="200" fontSize="10" fontWeight="bold">Question</text>
+      {optLabels.map((l, j) => (
+        <text key={j} x={TABLE.OPT_X[j]} y="200" textAnchor="middle" fontSize="11" fontWeight="bold">{l}</text>
+      ))}
+      <text x={TABLE.PTS_X} y="200" textAnchor="middle" fontSize="10" fontWeight="bold">/ pts</text>
+      <line x1="40" y1="208" x2="754" y2="208" stroke="#000" strokeWidth="0.8" />
+
+      {/* ── Lignes de questions ── */}
+      {qcmRows.map((row, i) => {
+        const cy      = rowCenterY(i, n);
+        const lineY   = TABLE.TABLE_TOP + (i + 1) * rh;
+        const isMulti = row.multiple;
+        return (
+          <g key={row.label}>
+            {/* Label */}
+            <text x={TABLE.LABEL_X} y={cy + 4} fontSize="10">{row.label}</text>
+
+            {/* Bulles (○ choix unique, □ choix multiple) */}
+            {row.options.filter(Boolean).slice(0, maxOpts).map((_, j) => (
+              isMulti
+                ? <rect key={j} x={TABLE.OPT_X[j] - 10} y={cy - 10} width="20" height="20" fill="none" stroke="#000" strokeWidth="1.5" />
+                : <circle key={j} cx={TABLE.OPT_X[j]} cy={cy} r="10" fill="none" stroke="#000" strokeWidth="1.5" />
+            ))}
+
+            {/* Points */}
+            <text x={TABLE.PTS_X} y={cy + 4} textAnchor="middle" fontSize="9" fill="#888">{row.points}</text>
+
+            {/* Séparateur */}
+            {i < n - 1 && <line x1="40" y1={lineY} x2="754" y2={lineY} stroke="#ddd" strokeWidth="0.5" />}
+          </g>
+        );
+      })}
+
+      {/* ── Bordure bas de table ── */}
+      <line x1="40" y1={TABLE.TABLE_TOP + n * rh} x2="754" y2={TABLE.TABLE_TOP + n * rh} stroke="#000" strokeWidth="1" />
+
+      {/* ── Pied de page ── */}
+      <text x="397" y="1075" textAnchor="middle" fontSize="8" fill="#aaa">
+        ID : {evaluation.id.slice(0, 12)}… — Teac
+      </text>
+    </svg>
   );
 }
 
@@ -163,44 +230,59 @@ export default function EvaluationDetailPage() {
     enabled: !!id,
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-indigo-600" />
-      </div>
-    );
-  }
+  if (isLoading) return (
+    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-indigo-600" />
+    </div>
+  );
 
-  if (!evaluation) {
-    return (
-      <div className="p-8 text-center text-gray-400">
-        <p className="mb-4">Évaluation introuvable.</p>
-        <button onClick={() => navigate('/evaluations')} className="font-medium text-indigo-700 hover:underline">
-          Retour aux évaluations
-        </button>
-      </div>
-    );
-  }
+  if (!evaluation) return (
+    <div className="p-8 text-center text-gray-400">
+      <p className="mb-4">Évaluation introuvable.</p>
+      <button onClick={() => navigate('/evaluations')} className="font-medium text-indigo-700 hover:underline">
+        Retour aux évaluations
+      </button>
+    </div>
+  );
 
-  const content = evaluation.content as EvaluationContent | null;
-  const exercices = content?.exercices ?? [];
+  const content    = evaluation.content as EvaluationContent | null;
+  const exercices  = content?.exercices ?? [];
   const hasContent = exercices.length > 0;
-  const dateStr = format(new Date(evaluation.date), 'dd/MM/yyyy', { locale: fr });
+  const dateStr    = format(new Date(evaluation.date), 'dd/MM/yyyy', { locale: fr });
   const coursesStr = evaluation.courses.map((ec) => ec.course.nom).join(', ');
+
+  // Extrait toutes les questions contenant un bloc QCM
+  const qcmRows: QcmRow[] = [];
+  exercices.forEach((ex, exIdx) => {
+    ex.questions.forEach((q, qIdx) => {
+      const qcmBlock = q.blocks.find(b => b.type === 'qcm') as QcmBlock | undefined;
+      if (qcmBlock) qcmRows.push({
+        label:      `Q${exIdx + 1}.${qIdx + 1}`,
+        questionId: q.id,
+        options:    qcmBlock.options,
+        correctes:  qcmBlock.correctes ?? [],
+        points:     q.points,
+        multiple:   qcmBlock.multiple ?? false,
+      });
+    });
+  });
+  const hasQcm = qcmRows.length > 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
       <style>{`
         @media screen {
           .eval-print-thead { display: none; }
-          .print-lines { display: none; }
+          .print-lines      { display: none; }
+          .answer-sheet     { display: none; }
         }
         @media print {
-          .no-print { display: none !important; }
-          body { background: white !important; }
+          .no-print         { display: none !important; }
+          body              { background: white !important; }
           .eval-print-thead { display: table-header-group !important; }
-          .print-lines { display: block !important; }
-          @page { margin: 1.5cm; }
+          .print-lines      { display: block !important; }
+          .answer-sheet     { display: block !important; page-break-before: always; }
+          @page             { margin: 1.5cm; }
         }
       `}</style>
 
@@ -212,6 +294,12 @@ export default function EvaluationDetailPage() {
             <ArrowLeft size={16} /> Retour
           </button>
           <div className="flex items-center gap-2">
+            {hasQcm && (
+              <Link to={`/evaluations/${evaluation.id}/scan`}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100">
+                <ScanLine size={15} /> Scanner et corriger
+              </Link>
+            )}
             <button onClick={() => window.print()}
               className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:border-gray-300 hover:text-gray-900">
               <Printer size={15} /> Imprimer / PDF
@@ -225,7 +313,7 @@ export default function EvaluationDetailPage() {
       </header>
 
       <main className="mx-auto max-w-4xl px-6 py-8">
-        {/* Fiche d'identité — visible uniquement sur la page 1 */}
+        {/* Fiche d'identité */}
         <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="no-print mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-700">
             <ClipboardList size={22} />
@@ -250,10 +338,9 @@ export default function EvaluationDetailPage() {
           )}
         </div>
 
-        {/* Table avec thead répété à chaque page à l'impression */}
+        {/* Contenu des exercices */}
         {hasContent ? (
           <table className="w-full border-collapse">
-            {/* En-tête compact : masqué à l'écran, répété sur toutes les pages imprimées */}
             <thead className="eval-print-thead">
               <tr>
                 <td className="border-b-2 border-gray-700 pb-3">
@@ -267,17 +354,10 @@ export default function EvaluationDetailPage() {
                 </td>
               </tr>
             </thead>
-
             <tbody>
               {exercices.map((ex, exIdx) => (
-                <tr key={ex.id}>
-                  <td className="pb-2 pt-8">
-                    <ExerciceView ex={ex} exIdx={exIdx} />
-                  </td>
-                </tr>
+                <tr key={ex.id}><td className="pb-2 pt-8"><ExerciceView ex={ex} exIdx={exIdx} /></td></tr>
               ))}
-
-              {/* Récapitulatif barème — écran seulement */}
               <tr className="no-print">
                 <td className="pt-6">
                   <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -286,9 +366,7 @@ export default function EvaluationDetailPage() {
                       <tbody className="divide-y divide-gray-100">
                         {exercices.map((ex, i) => (
                           <tr key={ex.id}>
-                            <td className="py-1.5 text-gray-600">
-                              Exercice {i + 1}{ex.titre ? ` — ${ex.titre}` : ''}
-                            </td>
+                            <td className="py-1.5 text-gray-600">Exercice {i + 1}{ex.titre ? ` — ${ex.titre}` : ''}</td>
                             <td className="py-1.5 text-right font-medium text-gray-800">
                               {ex.questions.reduce((s, q) => s + q.points, 0)} pts
                             </td>
@@ -320,6 +398,13 @@ export default function EvaluationDetailPage() {
           </div>
         )}
       </main>
+
+      {/* Feuille de réponses : masquée à l'écran, imprimée sur une nouvelle page */}
+      {hasQcm && (
+        <div className="answer-sheet mx-auto max-w-4xl px-6">
+          <AnswerSheetSvg evaluation={evaluation} qcmRows={qcmRows} />
+        </div>
+      )}
     </div>
   );
 }
