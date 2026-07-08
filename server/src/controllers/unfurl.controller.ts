@@ -101,7 +101,7 @@ export async function getUnfurl(req: AuthRequest, res: Response): Promise<void> 
   const targetUrl = parsePublicHttpUrl(req.query.url);
 
   if (!targetUrl) {
-    res.status(400).json({ message: 'URL invalide ou non autorisee' });
+    res.json({});
     return;
   }
 
