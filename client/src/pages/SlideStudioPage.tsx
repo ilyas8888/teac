@@ -22,6 +22,15 @@ const StudioSessionEditor = SessionEditor as ComponentType<SessionEditorWithUplo
 const exportThemes: PresentOptions['theme'][] = ['white', 'black', 'night', 'moon', 'solarized', 'sky'];
 const exportTransitions: PresentOptions['transition'][] = ['slide', 'fade', 'zoom', 'convex', 'concave', 'none'];
 
+const THEME_CANVAS: Record<PresentOptions['theme'], { canvas: string; slide: string; text: string; border: string }> = {
+  white:     { canvas: '#e8e8e8', slide: '#ffffff', text: '#222222', border: '#d0d0d0' },
+  black:     { canvas: '#111111', slide: '#191919', text: '#ffffff', border: '#333333' },
+  night:     { canvas: '#0e0f10', slide: '#1c1e20', text: '#eeeeee', border: '#2e3032' },
+  moon:      { canvas: '#001922', slide: '#002b36', text: '#93a1a1', border: '#0a3340' },
+  solarized: { canvas: '#ede8d0', slide: '#fdf6e3', text: '#657b83', border: '#d8cfa8' },
+  sky:       { canvas: '#d4d8e0', slide: '#f0f1f2', text: '#333333', border: '#bcc1cc' },
+};
+
 function isSlideHeading(block: RawBlock) {
   if (block.type !== 'heading') return false;
   const level = Number(block.props?.level ?? 1);
@@ -205,8 +214,18 @@ export default function SlideStudioPage() {
           onAddSlide={handleAddSlide}
         />
 
-        <main className="min-h-0 overflow-y-auto bg-white px-8 py-6">
-          <div className="mx-auto max-w-4xl rounded-lg border border-gray-200 bg-white py-6 shadow-sm">
+        <main
+          className="min-h-0 overflow-y-auto px-8 py-6 transition-colors duration-200"
+          style={{ backgroundColor: THEME_CANVAS[exportOptions.theme].canvas }}
+        >
+          <div
+            className="mx-auto max-w-4xl rounded-lg py-6 shadow-md transition-colors duration-200"
+            style={{
+              backgroundColor: activeBackground !== '#ffffff' ? activeBackground : THEME_CANVAS[exportOptions.theme].slide,
+              color: THEME_CANVAS[exportOptions.theme].text,
+              border: `1px solid ${THEME_CANVAS[exportOptions.theme].border}`,
+            }}
+          >
             <StudioSessionEditor
               key={editorKey}
               initialContent={content}
