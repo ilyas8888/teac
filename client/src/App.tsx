@@ -10,6 +10,8 @@ import CoursesPage from './pages/CoursesPage';
 import CourseDetailPage from './pages/CourseDetailPage';
 import CourseCreatePage from './pages/CourseCreatePage';
 import StudentsPage from './pages/StudentsPage';
+import EvaluationCreatePage from './pages/EvaluationCreatePage';
+import EvaluationDetailPage from './pages/EvaluationDetailPage';
 
 // Heavy: pulls in BlockNote — split out of the main bundle
 const SessionEditorPage = lazy(() => import('./pages/SessionEditorPage'));
@@ -49,6 +51,12 @@ function AppRoutes() {
         element={<ProtectedRoute><CourseCreatePage /></ProtectedRoute>} />
       <Route path="/courses/:id/edit"
         element={<ProtectedRoute><CourseCreatePage /></ProtectedRoute>} />
+      <Route path="/evaluations/new"
+        element={<ProtectedRoute><EvaluationCreatePage /></ProtectedRoute>} />
+      <Route path="/evaluations/:id/edit"
+        element={<ProtectedRoute><EvaluationCreatePage /></ProtectedRoute>} />
+      <Route path="/evaluations/:id"
+        element={<ProtectedRoute><EvaluationDetailPage /></ProtectedRoute>} />
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<DashboardPage />} />
         <Route path="classes" element={<ClassesPage />} />

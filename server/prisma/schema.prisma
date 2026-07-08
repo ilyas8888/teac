@@ -29,6 +29,7 @@ model User {
   messagesSent Message[]     @relation("SentMessages")
   messagesReceived Message[] @relation("ReceivedMessages")
   events       Event[]
+  evaluations  Evaluation[]
 }
 
 model Class {
@@ -80,7 +81,7 @@ model Course {
   updatedAt   DateTime @updatedAt
 
   sessions    Session[]
-  evaluations Evaluation[]
+  evaluations EvaluationCourse[]
 }
 
 model Module {
@@ -142,11 +143,22 @@ model Evaluation {
   titre     String
   bareme    Float
   date      DateTime
-  courseId  String
-  course    Course   @relation(fields: [courseId], references: [id])
+  content   Json?
+  teacherId String
+  teacher   User     @relation(fields: [teacherId], references: [id])
   createdAt DateTime @default(now())
-
+  updatedAt DateTime @updatedAt
+  courses   EvaluationCourse[]
   grades    Grade[]
+}
+
+model EvaluationCourse {
+  evaluationId String
+  courseId     String
+  evaluation   Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  course       Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@id([evaluationId, courseId])
 }
 
 model Grade {

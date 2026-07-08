@@ -71,11 +71,11 @@ export const deleteCourse = async (req: AuthRequest, res: Response): Promise<voi
     await prisma.session.deleteMany({ where: { courseId } });
   }
 
-  const evaluations = await prisma.evaluation.findMany({ where: { courseId }, select: { id: true } });
-  const evaluationIds = evaluations.map((e) => e.id);
+  const evaluationLinks = await prisma.evaluationCourse.findMany({ where: { courseId }, select: { evaluationId: true } });
+  const evaluationIds = evaluationLinks.map((link) => link.evaluationId);
   if (evaluationIds.length) {
     await prisma.grade.deleteMany({ where: { evaluationId: { in: evaluationIds } } });
-    await prisma.evaluation.deleteMany({ where: { courseId } });
+    await prisma.evaluation.deleteMany({ where: { id: { in: evaluationIds } } });
   }
 
   await prisma.course.delete({ where: { id: courseId } });

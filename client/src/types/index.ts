@@ -91,13 +91,22 @@ export interface Resource {
   sessionId: string;
 }
 
+export interface EvaluationCourse {
+  evaluationId: string;
+  courseId: string;
+  course: { id: string; nom: string };
+}
+
 export interface Evaluation {
   id: string;
   titre: string;
   bareme: number;
   date: string;
-  courseId: string;
-  course?: { nom: string };
+  content?: unknown;
+  teacherId: string;
+  createdAt: string;
+  updatedAt: string;
+  courses: EvaluationCourse[];
   _count?: { grades: number };
 }
 

@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { getEvaluations, getEvaluation, createEvaluation, updateEvaluation, deleteEvaluation } from '../controllers/evaluation.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { authMiddleware as authenticate } from '../middleware/auth.middleware';
 
 const router = Router();
-router.use(authMiddleware);
+router.use(authenticate);
 
 router.get('/', getEvaluations);
 router.get('/:id', getEvaluation);

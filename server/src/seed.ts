@@ -155,7 +155,8 @@ async function main() {
       titre: 'Contrôle HTML/CSS',
       bareme: 20,
       date: new Date('2026-02-07T08:00:00'),
-      courseId: courseWeb.id,
+      teacherId: teacher.id,
+      courses: { create: [{ courseId: courseWeb.id }] },
     },
   });
 
@@ -167,7 +168,8 @@ async function main() {
       titre: 'Examen SQL',
       bareme: 20,
       date: new Date('2026-02-14T10:00:00'),
-      courseId: courseDB.id,
+      teacherId: teacher.id,
+      courses: { create: [{ courseId: courseDB.id }] },
     },
   });
 
