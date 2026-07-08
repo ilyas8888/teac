@@ -25,12 +25,12 @@ const exportTransitions: PresentOptions['transition'][] = ['slide', 'fade', 'zoo
 const DARK_THEMES = new Set<PresentOptions['theme']>(['black', 'night', 'moon']);
 
 const THEME_CANVAS: Record<PresentOptions['theme'], { canvas: string; slide: string; text: string; border: string }> = {
-  white:     { canvas: '#e8e8e8', slide: '#ffffff', text: '#222222', border: '#d0d0d0' },
+  white:     { canvas: '#d8d8d8', slide: '#ffffff', text: '#222222', border: '#c0c0c0' },
   black:     { canvas: '#111111', slide: '#191919', text: '#ffffff', border: '#333333' },
   night:     { canvas: '#0e0f10', slide: '#1c1e20', text: '#eeeeee', border: '#2e3032' },
   moon:      { canvas: '#001922', slide: '#002b36', text: '#93a1a1', border: '#0a3340' },
-  solarized: { canvas: '#ede8d0', slide: '#fdf6e3', text: '#657b83', border: '#d8cfa8' },
-  sky:       { canvas: '#d4d8e0', slide: '#f0f1f2', text: '#333333', border: '#bcc1cc' },
+  solarized: { canvas: '#c8b860', slide: '#fdf6e3', text: '#657b83', border: '#c8b660' },
+  sky:       { canvas: '#7ab8c8', slide: '#add9e4', text: '#333333', border: '#5aa0b4' },
 };
 
 function isSlideHeading(block: RawBlock) {
