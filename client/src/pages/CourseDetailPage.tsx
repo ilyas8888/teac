@@ -636,7 +636,7 @@ function ModuleRow({ module, sessions, modules, index, total, state, dispatch, i
           )}
           <button onClick={onCreateSession}
             className="inline-flex items-center gap-1.5 text-sm text-indigo-700 hover:text-indigo-900 font-medium">
-            <Plus size={14} /> Nouvelle sÃ©ance
+            <Plus size={14} /> Nouvelle séance
           </button>
         </div>
       )}
