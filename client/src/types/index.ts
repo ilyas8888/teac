@@ -91,10 +91,17 @@ export interface Resource {
   sessionId: string;
 }
 
+export type QuestionType = 'open' | 'qcm' | 'image';
+
 export interface EvalQuestion {
   id: string;
+  type?: QuestionType;
   texte: string;
   points: number;
+  options?: string[];
+  optionCorrecte?: number;
+  imageUrl?: string;
+  imageCaption?: string;
 }
 
 export interface EvalExercice {

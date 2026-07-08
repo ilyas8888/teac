@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, ClipboardList } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../services/api';
-import type { Course, Evaluation, EvalExercice, EvalQuestion, EvaluationContent } from '../types';
+import type { Course, Evaluation, EvalExercice, EvalQuestion, EvaluationContent, QuestionType } from '../types';
 
 interface EvaluationForm {
   titre: string;
@@ -14,25 +14,32 @@ interface EvaluationForm {
 }
 
 const emptyForm: EvaluationForm = { titre: '', bareme: '20', date: '', courseIds: [] };
-
 const inputClass = 'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500';
 
 export function toDatetimeLocal(iso: string) {
   if (!iso) return '';
   const date = new Date(iso);
   const offset = date.getTimezoneOffset();
-  const local = new Date(date.getTime() - offset * 60_000);
-  return local.toISOString().slice(0, 16);
+  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16);
 }
 
-function fromEvaluation(evaluation: Evaluation): EvaluationForm {
+function makeQuestion(type: QuestionType): EvalQuestion {
   return {
-    titre: evaluation.titre,
-    bareme: String(evaluation.bareme),
-    date: toDatetimeLocal(evaluation.date),
-    courseIds: evaluation.courses.map((item) => item.courseId),
+    id: crypto.randomUUID(),
+    type,
+    texte: '',
+    points: type === 'image' ? 0 : 1,
+    ...(type === 'qcm' ? { options: ['', '', '', ''] } : {}),
+    ...(type === 'image' ? { imageUrl: '', imageCaption: '' } : {}),
   };
 }
+
+const TYPE_LABEL: Record<QuestionType, string> = { open: 'Texte', qcm: 'QCM', image: 'Image' };
+const TYPE_COLOR: Record<QuestionType, string> = {
+  open: 'bg-blue-50 text-blue-600',
+  qcm: 'bg-purple-50 text-purple-600',
+  image: 'bg-emerald-50 text-emerald-600',
+};
 
 export default function EvaluationCreatePage() {
   const navigate = useNavigate();
@@ -55,50 +62,45 @@ export default function EvaluationCreatePage() {
 
   useEffect(() => {
     if (!evaluation) return;
-    setForm(fromEvaluation(evaluation));
-    if (evaluation.content) {
-      const content = evaluation.content as EvaluationContent;
-      if (content.exercices) setExercices(content.exercices);
-    }
+    setForm({
+      titre: evaluation.titre,
+      bareme: String(evaluation.bareme),
+      date: toDatetimeLocal(evaluation.date),
+      courseIds: evaluation.courses.map((item) => item.courseId),
+    });
+    const content = evaluation.content as EvaluationContent | null;
+    if (content?.exercices) setExercices(content.exercices);
   }, [evaluation]);
 
   // --- Exercice helpers ---
   function addExercice() {
     setExercices((prev) => [...prev, { id: crypto.randomUUID(), titre: '', enonce: '', questions: [] }]);
   }
-
   function removeExercice(exId: string) {
     setExercices((prev) => prev.filter((ex) => ex.id !== exId));
   }
-
   function updateExercice(exId: string, patch: Partial<EvalExercice>) {
     setExercices((prev) => prev.map((ex) => ex.id === exId ? { ...ex, ...patch } : ex));
   }
-
-  function moveExercice(index: number, direction: 'up' | 'down') {
+  function moveExercice(index: number, dir: 'up' | 'down') {
     const list = [...exercices];
-    const swapIdx = direction === 'up' ? index - 1 : index + 1;
-    if (swapIdx < 0 || swapIdx >= list.length) return;
-    [list[index], list[swapIdx]] = [list[swapIdx], list[index]];
+    const swap = dir === 'up' ? index - 1 : index + 1;
+    if (swap < 0 || swap >= list.length) return;
+    [list[index], list[swap]] = [list[swap], list[index]];
     setExercices(list);
   }
 
-  function addQuestion(exId: string) {
+  // --- Question helpers ---
+  function addQuestion(exId: string, type: QuestionType) {
     setExercices((prev) => prev.map((ex) =>
-      ex.id === exId
-        ? { ...ex, questions: [...ex.questions, { id: crypto.randomUUID(), texte: '', points: 1 }] }
-        : ex
+      ex.id === exId ? { ...ex, questions: [...ex.questions, makeQuestion(type)] } : ex
     ));
   }
-
   function removeQuestion(exId: string, qId: string) {
     setExercices((prev) => prev.map((ex) =>
-      ex.id === exId
-        ? { ...ex, questions: ex.questions.filter((q) => q.id !== qId) }
-        : ex
+      ex.id === exId ? { ...ex, questions: ex.questions.filter((q) => q.id !== qId) } : ex
     ));
   }
-
   function updateQuestion(exId: string, qId: string, patch: Partial<EvalQuestion>) {
     setExercices((prev) => prev.map((ex) =>
       ex.id === exId
@@ -106,33 +108,38 @@ export default function EvaluationCreatePage() {
         : ex
     ));
   }
+  function updateOption(exId: string, qId: string, optIdx: number, value: string) {
+    setExercices((prev) => prev.map((ex) =>
+      ex.id === exId
+        ? { ...ex, questions: ex.questions.map((q) =>
+            q.id === qId
+              ? { ...q, options: (q.options ?? ['', '', '', '']).map((o, i) => i === optIdx ? value : o) }
+              : q
+          )}
+        : ex
+    ));
+  }
 
   const totalPoints = exercices.reduce(
-    (sum, ex) => sum + ex.questions.reduce((s, q) => s + q.points, 0),
-    0
+    (sum, ex) => sum + ex.questions.reduce((s, q) => s + q.points, 0), 0
   );
   const baremeOk = totalPoints === Number(form.bareme);
 
-  // --- Mutations ---
-  const buildPayload = () => {
-    const content: EvaluationContent = { exercices };
-    return {
-      titre: form.titre.trim(),
-      bareme: Number(form.bareme),
-      date: form.date,
-      content,
-      courseIds: form.courseIds,
-    };
-  };
+  const buildPayload = () => ({
+    titre: form.titre.trim(),
+    bareme: Number(form.bareme),
+    date: form.date,
+    content: { exercices } satisfies EvaluationContent,
+    courseIds: form.courseIds,
+  });
 
   const createEvaluation = useMutation({
     mutationFn: () => api.post('/evaluations', buildPayload()),
-    onSuccess: async (response) => {
+    onSuccess: async (res) => {
       await queryClient.invalidateQueries({ queryKey: ['evaluations'] });
-      navigate(`/evaluations/${response.data.id}`);
+      navigate(`/evaluations/${res.data.id}`);
     },
   });
-
   const updateEvaluation = useMutation({
     mutationFn: () => api.put(`/evaluations/${id}`, buildPayload()),
     onSuccess: async () => {
@@ -147,51 +154,39 @@ export default function EvaluationCreatePage() {
   const selectedCourses = courses.filter((c) => form.courseIds.includes(c.id));
 
   function update<K extends keyof EvaluationForm>(key: K, value: EvaluationForm[K]) {
-    setForm((current) => ({ ...current, [key]: value }));
+    setForm((cur) => ({ ...cur, [key]: value }));
   }
-
   function toggleCourse(courseId: string) {
-    setForm((current) => ({
-      ...current,
-      courseIds: current.courseIds.includes(courseId)
-        ? current.courseIds.filter((cid) => cid !== courseId)
-        : [...current.courseIds, courseId],
+    setForm((cur) => ({
+      ...cur,
+      courseIds: cur.courseIds.includes(courseId)
+        ? cur.courseIds.filter((cid) => cid !== courseId)
+        : [...cur.courseIds, courseId],
     }));
   }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     if (!canSubmit) return;
     if (isEdit) updateEvaluation.mutate();
     else createEvaluation.mutate();
   }
 
-  if (evaluationLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-indigo-600" />
-      </div>
-    );
-  }
+  if (evaluationLoading) return (
+    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-indigo-600" />
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="sticky top-0 z-20 border-b border-gray-200 bg-white">
         <div className="flex items-center justify-between px-8 py-4">
-          <button
-            type="button"
-            onClick={() => navigate(isEdit && id ? `/evaluations/${id}` : '/evaluations')}
-            className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-          >
-            <ArrowLeft size={16} />
-            Annuler
+          <button type="button" onClick={() => navigate(isEdit && id ? `/evaluations/${id}` : '/evaluations')}
+            className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900">
+            <ArrowLeft size={16} /> Annuler
           </button>
-          <button
-            type="submit"
-            form="evaluation-form"
-            disabled={!canSubmit}
-            className="rounded-lg bg-indigo-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
+          <button type="submit" form="evaluation-form" disabled={!canSubmit}
+            className="rounded-lg bg-indigo-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-800 disabled:cursor-not-allowed disabled:opacity-50">
             {isSaving ? 'Enregistrement...' : isEdit ? 'Enregistrer' : 'Créer'}
           </button>
         </div>
@@ -220,19 +215,15 @@ export default function EvaluationCreatePage() {
 
           <Section title="Cours">
             {coursesLoading ? (
-              <div className="py-4 text-sm text-gray-400">Chargement des cours...</div>
+              <div className="py-4 text-sm text-gray-400">Chargement...</div>
             ) : courses.length === 0 ? (
               <div className="rounded-lg border border-dashed border-gray-300 p-5 text-sm text-gray-400">Aucun cours disponible.</div>
             ) : (
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 {courses.map((course) => (
                   <label key={course.id} className="flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-sm hover:border-indigo-200 hover:bg-indigo-50/40">
-                    <input
-                      type="checkbox"
-                      checked={form.courseIds.includes(course.id)}
-                      onChange={() => toggleCourse(course.id)}
-                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-700 focus:ring-indigo-500"
-                    />
+                    <input type="checkbox" checked={form.courseIds.includes(course.id)} onChange={() => toggleCourse(course.id)}
+                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-indigo-700 focus:ring-indigo-500" />
                     <span>
                       <span className="block font-medium text-gray-900">{course.nom}</span>
                       <span className="text-xs text-gray-500">{course.matiere}</span>
@@ -247,12 +238,10 @@ export default function EvaluationCreatePage() {
             {/* Indicateur barème */}
             {exercices.length > 0 && (
               <div className={`flex flex-wrap items-center gap-2 rounded-lg px-3 py-2 text-sm ${baremeOk ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
-                <span>Total calculé : <strong>{totalPoints} pts</strong></span>
+                <span>Total : <strong>{totalPoints} pts</strong></span>
                 <span className="text-gray-300">—</span>
-                <span>Barème déclaré : <strong>{form.bareme} pts</strong></span>
-                {baremeOk
-                  ? <span className="font-semibold">✓</span>
-                  : <span>⚠ Écart de {Math.abs(Number(form.bareme) - totalPoints)} pts</span>}
+                <span>Barème : <strong>{form.bareme} pts</strong></span>
+                {baremeOk ? <span className="font-semibold">✓</span> : <span>⚠ écart de {Math.abs(Number(form.bareme) - totalPoints)} pts</span>}
               </div>
             )}
 
@@ -262,12 +251,9 @@ export default function EvaluationCreatePage() {
                   {/* Header exercice */}
                   <div className="flex items-center gap-2 border-b border-gray-100 bg-gray-50 px-4 py-2">
                     <span className="shrink-0 text-xs font-semibold uppercase text-gray-400">Exercice {exIdx + 1}</span>
-                    <input
-                      value={ex.titre}
-                      onChange={(e) => updateExercice(ex.id, { titre: e.target.value })}
+                    <input value={ex.titre} onChange={(e) => updateExercice(ex.id, { titre: e.target.value })}
                       placeholder="Titre (optionnel)"
-                      className="flex-1 bg-transparent text-sm font-semibold text-gray-800 placeholder-gray-300 outline-none"
-                    />
+                      className="flex-1 bg-transparent text-sm font-semibold text-gray-800 placeholder-gray-300 outline-none" />
                     <span className="shrink-0 text-xs font-medium text-gray-400">
                       {ex.questions.reduce((s, q) => s + q.points, 0)} pts
                     </span>
@@ -283,61 +269,98 @@ export default function EvaluationCreatePage() {
 
                   {/* Énoncé */}
                   <div className="px-4 pt-3 pb-2">
-                    <textarea
-                      value={ex.enonce}
-                      onChange={(e) => updateExercice(ex.id, { enonce: e.target.value })}
-                      placeholder="Énoncé, contexte, données…"
-                      rows={3}
-                      className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder-gray-300 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                    />
+                    <textarea value={ex.enonce} onChange={(e) => updateExercice(ex.id, { enonce: e.target.value })}
+                      placeholder="Énoncé, contexte, données…" rows={3}
+                      className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder-gray-300 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
                   </div>
 
                   {/* Questions */}
-                  <div className="space-y-2 px-4 pb-3">
-                    {ex.questions.map((q, qIdx) => (
-                      <div key={q.id} className="flex items-start gap-2">
-                        <span className="mt-2 w-8 shrink-0 text-xs font-medium text-gray-400">
-                          Q{exIdx + 1}.{qIdx + 1}
-                        </span>
-                        <textarea
-                          value={q.texte}
-                          onChange={(e) => updateQuestion(ex.id, q.id, { texte: e.target.value })}
-                          placeholder="Texte de la question…"
-                          rows={2}
-                          className="flex-1 resize-none rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 placeholder-gray-300 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                        />
-                        <div className="mt-1 flex shrink-0 items-center gap-1">
-                          <input
-                            type="number"
-                            value={q.points}
-                            onChange={(e) => updateQuestion(ex.id, q.id, { points: Math.max(0, Number(e.target.value)) })}
-                            min="0"
-                            step="0.5"
-                            className="w-14 rounded border border-gray-200 px-2 py-1 text-center text-sm outline-none focus:border-indigo-300"
-                          />
-                          <span className="text-xs text-gray-400">pts</span>
-                          <button type="button" onClick={() => removeQuestion(ex.id, q.id)}
-                            className="ml-1 rounded p-1 text-gray-300 hover:text-red-400">×</button>
+                  <div className="space-y-3 px-4 pb-3">
+                    {ex.questions.map((q, qIdx) => {
+                      const qType = q.type ?? 'open';
+                      return (
+                        <div key={q.id} className="flex items-start gap-2">
+                          <span className="mt-2 w-8 shrink-0 text-xs font-medium text-gray-400">Q{exIdx + 1}.{qIdx + 1}</span>
+                          <div className="flex-1 space-y-2">
+                            <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${TYPE_COLOR[qType]}`}>
+                              {TYPE_LABEL[qType]}
+                            </span>
+                            <textarea value={q.texte}
+                              onChange={(e) => updateQuestion(ex.id, q.id, { texte: e.target.value })}
+                              placeholder={qType === 'image' ? 'Légende / consigne liée à l\'image…' : 'Texte de la question…'}
+                              rows={2}
+                              className="w-full resize-none rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-700 placeholder-gray-300 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100" />
+
+                            {/* QCM options */}
+                            {qType === 'qcm' && (
+                              <div className="space-y-1.5 pl-1">
+                                {(q.options ?? ['', '', '', '']).map((opt, i) => (
+                                  <div key={i} className="flex items-center gap-2">
+                                    <button type="button" onClick={() => updateQuestion(ex.id, q.id, { optionCorrecte: i })}
+                                      title="Bonne réponse"
+                                      className={`h-4 w-4 shrink-0 rounded-full border-2 transition-colors ${q.optionCorrecte === i ? 'border-green-500 bg-green-500' : 'border-gray-300 hover:border-green-400'}`} />
+                                    <span className="w-4 shrink-0 text-xs font-bold text-gray-400">{String.fromCharCode(65 + i)}</span>
+                                    <input value={opt} onChange={(e) => updateOption(ex.id, q.id, i, e.target.value)}
+                                      placeholder={`Option ${String.fromCharCode(65 + i)}…`}
+                                      className="flex-1 rounded border border-gray-200 px-2 py-1 text-sm outline-none focus:border-indigo-300" />
+                                  </div>
+                                ))}
+                                {q.optionCorrecte !== undefined && (
+                                  <p className="pl-6 text-xs text-green-600">Bonne réponse : {String.fromCharCode(65 + q.optionCorrecte)}</p>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Image URL */}
+                            {qType === 'image' && (
+                              <div className="space-y-2">
+                                <input value={q.imageUrl ?? ''} onChange={(e) => updateQuestion(ex.id, q.id, { imageUrl: e.target.value })}
+                                  placeholder="URL de l'image (https://…)"
+                                  className="w-full rounded border border-gray-200 px-3 py-1.5 text-sm outline-none focus:border-indigo-300" />
+                                {q.imageUrl && (
+                                  <img src={q.imageUrl} alt="aperçu"
+                                    className="max-h-40 rounded border border-gray-200 object-contain"
+                                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Points + remove */}
+                          <div className="mt-1 flex shrink-0 items-center gap-1">
+                            {qType !== 'image' && (
+                              <>
+                                <input type="number" value={q.points}
+                                  onChange={(e) => updateQuestion(ex.id, q.id, { points: Math.max(0, Number(e.target.value)) })}
+                                  min="0" step="0.5"
+                                  className="w-14 rounded border border-gray-200 px-2 py-1 text-center text-sm outline-none focus:border-indigo-300" />
+                                <span className="text-xs text-gray-400">pts</span>
+                              </>
+                            )}
+                            <button type="button" onClick={() => removeQuestion(ex.id, q.id)}
+                              className="ml-1 rounded p-1 text-gray-300 hover:text-red-400">×</button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => addQuestion(ex.id)}
-                      className="mt-1 text-xs text-indigo-500 hover:text-indigo-700"
-                    >
-                      + Ajouter une question
-                    </button>
+                      );
+                    })}
+
+                    {/* Boutons ajouter question */}
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <span className="text-xs text-gray-400">+ Ajouter :</span>
+                      {(['open', 'qcm', 'image'] as QuestionType[]).map((t) => (
+                        <button key={t} type="button" onClick={() => addQuestion(ex.id, t)}
+                          className={`rounded-full border px-3 py-0.5 text-xs font-medium transition-colors ${TYPE_COLOR[t]} border-current/20 hover:opacity-80`}>
+                          {TYPE_LABEL[t]}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
 
-            <button
-              type="button"
-              onClick={addExercice}
-              className="w-full rounded-xl border border-dashed border-gray-300 py-3 text-sm text-gray-500 hover:border-indigo-300 hover:text-indigo-600"
-            >
+            <button type="button" onClick={addExercice}
+              className="w-full rounded-xl border border-dashed border-gray-300 py-3 text-sm text-gray-500 hover:border-indigo-300 hover:text-indigo-600">
               + Ajouter un exercice
             </button>
           </Section>
@@ -345,13 +368,7 @@ export default function EvaluationCreatePage() {
 
         <aside className="w-full lg:w-80">
           <div className="sticky top-24">
-            <EvaluationPreview
-              form={form}
-              courses={selectedCourses}
-              exercices={exercices}
-              totalPoints={totalPoints}
-              baremeOk={baremeOk}
-            />
+            <EvaluationPreview form={form} courses={selectedCourses} exercices={exercices} totalPoints={totalPoints} baremeOk={baremeOk} />
           </div>
         </aside>
       </main>
@@ -360,11 +377,7 @@ export default function EvaluationCreatePage() {
 }
 
 function EvaluationPreview({ form, courses, exercices, totalPoints, baremeOk }: {
-  form: EvaluationForm;
-  courses: Course[];
-  exercices: EvalExercice[];
-  totalPoints: number;
-  baremeOk: boolean;
+  form: EvaluationForm; courses: Course[]; exercices: EvalExercice[]; totalPoints: number; baremeOk: boolean;
 }) {
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -382,8 +395,8 @@ function EvaluationPreview({ form, courses, exercices, totalPoints, baremeOk }: 
           <div className="mt-4">
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Cours</div>
             <div className="flex flex-wrap gap-2">
-              {courses.map((course) => (
-                <span key={course.id} className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700">{course.nom}</span>
+              {courses.map((c) => (
+                <span key={c.id} className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-700">{c.nom}</span>
               ))}
             </div>
           </div>
