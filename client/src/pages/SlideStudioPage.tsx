@@ -23,13 +23,13 @@ const StudioSessionEditor = SessionEditor as ComponentType<SessionEditorWithUplo
 const exportThemes: PresentOptions['theme'][] = ['white', 'black', 'night', 'moon', 'solarized', 'sky'];
 const exportTransitions: PresentOptions['transition'][] = ['slide', 'fade', 'zoom', 'convex', 'concave', 'none'];
 
-const THEME_CANVAS: Record<PresentOptions['theme'], { canvas: string; slide: string; text: string; border: string }> = {
-  white:     { canvas: '#d8d8d8', slide: '#ffffff', text: '#222222', border: '#c0c0c0' },
-  black:     { canvas: '#111111', slide: '#191919', text: '#ffffff', border: '#333333' },
-  night:     { canvas: '#0e0f10', slide: '#1c1e20', text: '#eeeeee', border: '#2e3032' },
-  moon:      { canvas: '#001922', slide: '#002b36', text: '#93a1a1', border: '#0a3340' },
-  solarized: { canvas: '#c8b860', slide: '#fdf6e3', text: '#657b83', border: '#c8b660' },
-  sky:       { canvas: '#7ab8c8', slide: '#add9e4', text: '#333333', border: '#5aa0b4' },
+const THEME_CANVAS: Record<PresentOptions['theme'], { slide: string; text: string; border: string }> = {
+  white:     { slide: '#ffffff', text: '#222222', border: '#c0c0c0' },
+  black:     { slide: '#191919', text: '#ffffff', border: '#333333' },
+  night:     { slide: '#1c1e20', text: '#eeeeee', border: '#2e3032' },
+  moon:      { slide: '#002b36', text: '#93a1a1', border: '#0a3340' },
+  solarized: { slide: '#fdf6e3', text: '#657b83', border: '#c8b660' },
+  sky:       { slide: '#add9e4', text: '#333333', border: '#5aa0b4' },
 };
 
 function isSlideHeading(block: RawBlock) {
@@ -228,8 +228,7 @@ export default function SlideStudioPage() {
         />
 
         <main
-          className="min-h-0 overflow-y-auto px-8 py-6 transition-colors duration-200"
-          style={{ backgroundColor: themeColors.canvas }}
+          className="min-h-0 overflow-y-auto px-8 py-6"
         >
           <div
             id="studio-slide-canvas"
