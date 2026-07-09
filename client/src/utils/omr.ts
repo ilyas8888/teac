@@ -152,17 +152,27 @@ function loadImg(file: File): Promise<HTMLImageElement> {
   });
 }
 
-export async function analyzeSheet(file: File, rows: QcmRow[]): Promise<AnalysisResult> {
-  const img = await loadImg(file);
-  const cv  = document.createElement('canvas');
-  cv.width  = img.width;
-  cv.height = img.height;
-  const ctx = cv.getContext('2d')!;
-  ctx.drawImage(img, 0, 0);
+const MAX_DIM = 1400; // plafond de résolution — au-delà, l'OMR n'y gagne rien mais perd beaucoup de temps
 
-  const data  = ctx.getImageData(0, 0, img.width, img.height).data;
-  const gray  = toGray(data);
-  const w = img.width, h = img.height;
+export async function analyzeSheet(file: File, rows: QcmRow[]): Promise<AnalysisResult> {
+  const img   = await loadImg(file);
+
+  // Redimensionner si l'image dépasse MAX_DIM sur le plus grand côté
+  const scale = Math.min(1, MAX_DIM / Math.max(img.width, img.height));
+  const w     = Math.round(img.width  * scale);
+  const h     = Math.round(img.height * scale);
+
+  const cv  = document.createElement('canvas');
+  cv.width  = w;
+  cv.height = h;
+  const ctx = cv.getContext('2d')!;
+  ctx.drawImage(img, 0, 0, w, h);
+
+  // Céder le thread principal un tick pour que le spinner reste visible
+  await new Promise<void>(r => setTimeout(r, 0));
+
+  const data = ctx.getImageData(0, 0, w, h).data;
+  const gray = toGray(data);
 
   const corners = detectCorners(gray, w, h);
   if (!corners) return {
