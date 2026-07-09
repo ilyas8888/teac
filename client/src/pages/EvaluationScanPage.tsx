@@ -72,18 +72,49 @@ export default function EvaluationScanPage() {
     },
   });
 
+  const [isPreparing, setIsPreparing] = useState(false);
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  async function renderPdfToFile(file: File): Promise<File> {
+    const pdfjsLib = await import('pdfjs-dist');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+      'pdfjs-dist/build/pdf.worker.min.mjs',
+      import.meta.url,
+    ).href;
+    const data    = await file.arrayBuffer();
+    const pdf     = await pdfjsLib.getDocument({ data }).promise;
+    const page    = await pdf.getPage(1);
+    const base    = page.getViewport({ scale: 1 });
+    const scale   = Math.min(2, 1400 / base.width);
+    const vp      = page.getViewport({ scale });
+    const canvas  = document.createElement('canvas');
+    canvas.width  = Math.round(vp.width);
+    canvas.height = Math.round(vp.height);
+    await page.render({ canvasContext: canvas.getContext('2d')!, viewport: vp }).promise;
+    const blob = await new Promise<Blob>(res => canvas.toBlob(b => res(b!), 'image/jpeg', 0.92));
+    return new File([blob], file.name.replace(/\.pdf$/i, '.jpg'), { type: 'image/jpeg' });
+  }
+
   // ── Handlers ─────────────────────────────────────────────────────────────
 
-  function pickFile(file: File) {
-    setScanFile(file);
-    setPreview(URL.createObjectURL(file));
+  async function pickFile(file: File) {
     setErrMsg('');
+    let imgFile = file;
+    if (file.type === 'application/pdf') {
+      setIsPreparing(true);
+      try { imgFile = await renderPdfToFile(file); }
+      catch { setErrMsg('Impossible de lire ce PDF. Essayez de l\'exporter en image.'); setIsPreparing(false); return; }
+      setIsPreparing(false);
+    }
+    setScanFile(imgFile);
+    setPreview(URL.createObjectURL(imgFile));
   }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     const f = e.dataTransfer.files[0];
-    if (f && f.type.startsWith('image/')) pickFile(f);
+    if (f && (f.type.startsWith('image/') || f.type === 'application/pdf')) pickFile(f);
   }
 
   function handleInput(e: React.ChangeEvent<HTMLInputElement>) {
@@ -179,10 +210,19 @@ export default function EvaluationScanPage() {
                 onDragOver={e => e.preventDefault()}
                 className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/40 py-20 text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-colors"
               >
-                <Upload size={36} />
-                <span className="text-base font-medium">Glissez le scan ici ou cliquez pour choisir</span>
-                <span className="text-xs text-indigo-400">JPG, PNG, WEBP — photo ou scan plat</span>
-                <input type="file" accept="image/*" onChange={handleInput} className="hidden" />
+                {isPreparing ? (
+                  <>
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600" />
+                    <span className="text-sm font-medium">Conversion du PDF…</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload size={36} />
+                    <span className="text-base font-medium">Glissez le scan ici ou cliquez pour choisir</span>
+                    <span className="text-xs text-indigo-400">JPG, PNG, WEBP ou PDF</span>
+                  </>
+                )}
+                <input type="file" accept="image/*,application/pdf" onChange={handleInput} className="hidden" />
               </label>
             ) : (
               <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -191,7 +231,7 @@ export default function EvaluationScanPage() {
                   <p className="flex-1 truncate text-sm text-gray-700">{scanFile.name}</p>
                   <label className="cursor-pointer text-xs text-indigo-600 hover:underline">
                     Changer
-                    <input type="file" accept="image/*" onChange={handleInput} className="hidden" />
+                    <input type="file" accept="image/*,application/pdf" onChange={handleInput} className="hidden" />
                   </label>
                   <button
                     onClick={handleAnalyze}
@@ -207,8 +247,8 @@ export default function EvaluationScanPage() {
             <div className="rounded-xl border border-gray-200 bg-white p-5 text-sm text-gray-600">
               <p className="mb-3 font-semibold text-gray-800">Conseils pour un bon scan</p>
               <ul className="space-y-1.5 text-gray-500">
-                <li>• Posez la feuille sur une surface blanche et bien éclairée</li>
-                <li>• Photographiez à la verticale, sans angle — la feuille doit remplir le cadre</li>
+                <li>• <strong>PDF</strong> : la première page est convertie automatiquement — utilisez un scan numérique de préférence</li>
+                <li>• <strong>Photo</strong> : posez la feuille sur une surface blanche et bien éclairée, cadrez à la verticale</li>
                 <li>• Les <strong>4 carrés noirs</strong> aux coins doivent être entièrement visibles</li>
                 <li>• L'élève doit noircir entièrement la bulle, pas cocher en croix</li>
               </ul>
