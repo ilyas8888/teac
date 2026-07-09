@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Calendar, ClipboardList, Pencil, Printer, ScanLine } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowLeft, Calendar, ClipboardList, Download, Pencil, Printer, ScanLine } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -7,6 +8,7 @@ import api from '../services/api';
 import type {
   Evaluation, EvaluationContent, EvalExercice, EvalQuestion,
   ContentBlock, TextBlock, ImageBlock, TableBlock, QcmBlock,
+  Class, Student,
 } from '../types';
 import { TABLE, rowCenterY, rowHeight, type QcmRow } from '../utils/omr';
 
@@ -234,11 +236,27 @@ function AnswerSheetSvg({ evaluation, qcmRows }: { evaluation: Evaluation; qcmRo
 export default function EvaluationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [showSheetPanel, setShowSheetPanel] = useState(false);
+  const [sheetMode, setSheetMode] = useState<'blank' | 'class'>('blank');
+  const [sheetClassId, setSheetClassId] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const { data: evaluation, isLoading } = useQuery<Evaluation>({
     queryKey: ['evaluation', id],
     queryFn: () => api.get(`/evaluations/${id}`).then((r) => r.data),
     enabled: !!id,
+  });
+
+  const { data: classes = [] } = useQuery<Class[]>({
+    queryKey: ['classes'],
+    queryFn: () => api.get('/classes').then((r) => r.data),
+    enabled: showSheetPanel,
+  });
+
+  const { data: classStudents = [] } = useQuery<Student[]>({
+    queryKey: ['students', sheetClassId],
+    queryFn: () => api.get('/students', { params: { classId: sheetClassId } }).then((r) => r.data),
+    enabled: sheetMode === 'class' && !!sheetClassId,
   });
 
   if (isLoading) return (
@@ -279,6 +297,36 @@ export default function EvaluationDetailPage() {
   });
   const hasQcm = qcmRows.length > 0;
 
+  async function handleDownloadSheet(): Promise<void> {
+    setIsGenerating(true);
+    try {
+      const { generateAnswerSheet } = await import('../utils/generateAnswerSheet');
+      const selectedClass = classes.find((c) => c.id === sheetClassId);
+      const classe = selectedClass
+        ? `${selectedClass.nom}${selectedClass.groupe ? ` ${selectedClass.groupe}` : ''}`
+        : undefined;
+      const students = sheetMode === 'class' && sheetClassId
+        ? classStudents.map((student) => ({
+            nom: student.nom,
+            prenom: student.prenom,
+            classe,
+          }))
+        : undefined;
+      const bytes = await generateAnswerSheet(evaluation, qcmRows, students);
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `feuille-reponses-${evaluation.titre.replace(/[^a-z0-9-]+/gi, '-').toLowerCase()}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      setIsGenerating(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <style>{`
@@ -315,6 +363,12 @@ export default function EvaluationDetailPage() {
               className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:border-gray-300 hover:text-gray-900">
               <Printer size={15} /> Imprimer / PDF
             </button>
+            {hasQcm && (
+              <button onClick={() => setShowSheetPanel((value) => !value)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-100">
+                <Download size={15} /> Feuille eleve
+              </button>
+            )}
             <Link to={`/evaluations/${evaluation.id}/edit`}
               className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-900 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-800">
               <Pencil size={15} /> Modifier
@@ -322,6 +376,70 @@ export default function EvaluationDetailPage() {
           </div>
         </div>
       </header>
+
+      {showSheetPanel && hasQcm && (
+        <div className="no-print border-b border-emerald-100 bg-emerald-50/60">
+          <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-4 px-6 py-3">
+            <label className="inline-flex items-center gap-2 text-sm font-medium text-emerald-900">
+              <input
+                type="radio"
+                name="sheetMode"
+                value="blank"
+                checked={sheetMode === 'blank'}
+                onChange={() => setSheetMode('blank')}
+                className="text-emerald-700"
+              />
+              Feuille vierge
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm font-medium text-emerald-900">
+              <input
+                type="radio"
+                name="sheetMode"
+                value="class"
+                checked={sheetMode === 'class'}
+                onChange={() => setSheetMode('class')}
+                className="text-emerald-700"
+              />
+              Une feuille par eleve
+            </label>
+
+            {sheetMode === 'class' && (
+              <>
+                <select
+                  value={sheetClassId}
+                  onChange={(event) => setSheetClassId(event.target.value)}
+                  className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                >
+                  <option value="">Choisir une classe</option>
+                  {classes.map((classe) => (
+                    <option key={classe.id} value={classe.id}>
+                      {classe.nom}{classe.groupe ? ` ${classe.groupe}` : ''}
+                    </option>
+                  ))}
+                </select>
+                {sheetClassId && (
+                  <span className="text-sm text-emerald-700">
+                    {classStudents.length} eleve{classStudents.length > 1 ? 's' : ''}
+                  </span>
+                )}
+              </>
+            )}
+
+            <button
+              onClick={handleDownloadSheet}
+              disabled={isGenerating || (sheetMode === 'class' && !sheetClassId)}
+              className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isGenerating ? (
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+              ) : (
+                <Download size={15} />
+              )}
+              Telecharger PDF
+            </button>
+          </div>
+        </div>
+      )}
 
       <main className="mx-auto max-w-4xl px-6 py-8">
         {/* Fiche d'identité */}
