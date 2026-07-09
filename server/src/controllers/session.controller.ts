@@ -11,9 +11,9 @@ const sessionSchema = z.object({
   image: z.string().url().optional().nullable(),
   duree: z.number().int().positive(),
   date: z.string(),
-  courseId: z.string().uuid(),
-  classId: z.string().uuid(),
-  moduleId: z.string().cuid().optional().nullable(),
+  courseId: z.string().min(1),
+  classId: z.string().min(1),
+  moduleId: z.string().min(1).optional().nullable(),
 });
 
 const ensureSessionRelations = async (
@@ -126,4 +126,17 @@ export const deleteSession = async (req: AuthRequest, res: Response): Promise<vo
   await prisma.absence.updateMany({ where: { sessionId }, data: { sessionId: null } });
   await prisma.session.delete({ where: { id: sessionId } });
   res.json({ message: 'Séance supprimée' });
+};
+
+export const toggleSessionRealise = async (req: AuthRequest, res: Response): Promise<void> => {
+  const teacherId = req.userId as string;
+  const session = await prisma.session.findFirst({
+    where: { id: req.params.id, course: { teacherId } },
+  });
+  if (!session) { res.status(404).json({ message: 'Séance non trouvée' }); return; }
+  const updated = await prisma.session.update({
+    where: { id: req.params.id },
+    data: { realise: !session.realise },
+  });
+  res.json({ realise: updated.realise });
 };

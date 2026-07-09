@@ -59,3 +59,44 @@ export const deleteClass = async (req: AuthRequest, res: Response): Promise<void
   await prisma.class.delete({ where: { id: req.params.id } });
   res.json({ message: 'Classe supprimée' });
 };
+
+export const getClassStats = async (req: AuthRequest, res: Response): Promise<void> => {
+  const teacherId = req.userId as string;
+  const classId = req.params.id;
+
+  const cls = await prisma.class.findFirst({
+    where: { id: classId, teacherId },
+    include: { _count: { select: { students: true } } },
+  });
+  if (!cls) { res.status(404).json({ message: 'Classe non trouvée' }); return; }
+
+  const [students, sessions, grades] = await Promise.all([
+    prisma.student.findMany({
+      where: { classId },
+      orderBy: [{ nom: 'asc' }, { prenom: 'asc' }],
+    }),
+    prisma.session.findMany({
+      where: { classId },
+      include: { course: { select: { id: true, nom: true, matiere: true, couleur: true } } },
+      orderBy: { date: 'asc' },
+    }),
+    prisma.grade.findMany({
+      where: { student: { classId } },
+      include: { evaluation: { select: { id: true, titre: true, bareme: true, date: true } } },
+    }),
+  ]);
+
+  const evalMap = new Map<string, { id: string; titre: string; bareme: number; date: Date }>();
+  grades.forEach((g) => { if (!evalMap.has(g.evaluationId)) evalMap.set(g.evaluationId, g.evaluation); });
+  const evaluations = Array.from(evalMap.values()).sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+
+  res.json({
+    class: cls,
+    students,
+    evaluations,
+    grades: grades.map((g) => ({ studentId: g.studentId, evaluationId: g.evaluationId, note: g.note })),
+    sessions,
+  });
+};

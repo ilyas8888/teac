@@ -114,6 +114,7 @@ model Session {
   module      Module?  @relation(fields: [moduleId], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  realise     Boolean  @default(false)
 
   resources   Resource[]
   absences    Absence[]

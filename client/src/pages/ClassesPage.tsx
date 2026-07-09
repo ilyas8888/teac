@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Pencil, Trash2, Users, GraduationCap, X, UserPlus, Upload, ScanLine, Rows3 } from 'lucide-react';
 import api from '../services/api';
@@ -11,6 +12,7 @@ type Tab = 'table' | 'excel' | 'scan';
 
 export default function ClassesPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
   // Class form
   const [showForm, setShowForm] = useState(false);
@@ -183,14 +185,14 @@ export default function ClassesPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {classes.map((cls) => (
-            <div key={cls.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 hover:shadow-md transition-shadow">
+            <div key={cls.id} onClick={() => navigate(`/classes/${cls.id}`)} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 hover:shadow-md transition-shadow cursor-pointer">
               <div className="flex items-start justify-between mb-3">
                 <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
                   <GraduationCap size={20} className="text-indigo-600" />
                 </div>
                 <div className="flex gap-1">
-                  <button onClick={() => openEdit(cls)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"><Pencil size={15} /></button>
-                  <button onClick={() => { if (window.confirm(`Supprimer "${cls.nom}" ?`)) remove.mutate(cls.id); }}
+                  <button onClick={(e) => { e.stopPropagation(); openEdit(cls); }} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"><Pencil size={15} /></button>
+                  <button onClick={(e) => { e.stopPropagation(); if (window.confirm(`Supprimer "${cls.nom}" ?`)) remove.mutate(cls.id); }}
                     className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"><Trash2 size={15} /></button>
                 </div>
               </div>
@@ -203,7 +205,7 @@ export default function ClassesPage() {
                 <span className="flex items-center gap-1.5 text-sm text-gray-600">
                   <Users size={14} />{cls._count?.students ?? 0} élève{(cls._count?.students ?? 0) !== 1 ? 's' : ''}
                 </span>
-                <button onClick={() => openStudents(cls)}
+                <button onClick={(e) => { e.stopPropagation(); openStudents(cls); }}
                   className="flex items-center gap-1.5 text-xs text-indigo-600 font-medium hover:text-indigo-800 transition-colors">
                   <UserPlus size={13} /> Ajouter des élèves
                 </button>

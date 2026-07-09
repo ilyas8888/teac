@@ -23,6 +23,7 @@ import AIAssistantPage from './pages/AIAssistantPage';
 import MessagesPage from './pages/MessagesPage';
 import CalendarPage from './pages/CalendarPage';
 import ClassesPage from './pages/ClassesPage';
+import ClassDetailPage from './pages/ClassDetailPage';
 import SettingsPage from './pages/SettingsPage';
 
 const queryClient = new QueryClient({
@@ -62,6 +63,7 @@ function AppRoutes() {
         element={<ProtectedRoute><EvaluationDetailPage /></ProtectedRoute>} />
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<DashboardPage />} />
+        <Route path="classes/:id" element={<ClassDetailPage />} />
         <Route path="classes" element={<ClassesPage />} />
         <Route path="courses" element={<CoursesPage />} />
         <Route path="courses/:id" element={<CourseDetailPage />} />

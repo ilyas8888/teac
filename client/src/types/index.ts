@@ -74,6 +74,7 @@ export interface Session {
   content?: unknown; // BlockNote document (array of blocks) stored as JSON
   courseId: string;
   classId: string;
+  realise?: boolean;
   moduleId?: string | null;
   module?: { id: string; titre: string };
   course?: { nom: string; matiere?: string };
@@ -190,4 +191,12 @@ export interface DashboardSummary {
   upcomingSessions: Session[];
   recentAbsences: Absence[];
   unreadMessages: number;
+}
+
+export interface ClassStats {
+  class: Class;
+  students: Student[];
+  evaluations: { id: string; titre: string; bareme: number; date: string }[];
+  grades: { studentId: string; evaluationId: string; note: number }[];
+  sessions: (Session & { course: { id: string; nom: string; matiere: string; couleur?: string | null } })[];
 }
