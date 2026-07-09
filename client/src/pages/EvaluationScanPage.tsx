@@ -84,7 +84,8 @@ export default function EvaluationScanPage() {
     ).href;
     const data    = await file.arrayBuffer();
     const pdf     = await pdfjsLib.getDocument({ data }).promise;
-    const page    = await pdf.getPage(1);
+    // La feuille de réponses est toujours la dernière page (page-break-before: always)
+    const page    = await pdf.getPage(pdf.numPages);
     const base    = page.getViewport({ scale: 1 });
     const scale   = Math.min(2, 1400 / base.width);
     const vp      = page.getViewport({ scale });
@@ -247,7 +248,7 @@ export default function EvaluationScanPage() {
             <div className="rounded-xl border border-gray-200 bg-white p-5 text-sm text-gray-600">
               <p className="mb-3 font-semibold text-gray-800">Conseils pour un bon scan</p>
               <ul className="space-y-1.5 text-gray-500">
-                <li>• <strong>PDF</strong> : la première page est convertie automatiquement — utilisez un scan numérique de préférence</li>
+                <li>• <strong>PDF</strong> : la <strong>dernière page</strong> est utilisée automatiquement (c'est là que se trouve la feuille de réponses)</li>
                 <li>• <strong>Photo</strong> : posez la feuille sur une surface blanche et bien éclairée, cadrez à la verticale</li>
                 <li>• Les <strong>4 carrés noirs</strong> aux coins doivent être entièrement visibles</li>
                 <li>• L'élève doit noircir entièrement la bulle, pas cocher en croix</li>
