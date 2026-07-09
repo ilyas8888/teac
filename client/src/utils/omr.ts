@@ -88,9 +88,14 @@ function toGray(data: Uint8ClampedArray): Uint8ClampedArray {
 }
 
 function detectCorners(gray: Uint8ClampedArray, w: number, h: number): Corners | null {
-  const REGION    = 0.20;  // 20 % de l'image depuis chaque coin
-  const DARK      = 80;    // seuil de noirceur
-  const MIN_PX    = 25;    // pixels sombres minimum pour valider un repère
+  // Essai en zone étroite (10 %) d'abord : PDF imprimé avec marges → repères à ~9 % des bords
+  // Repli sur zone large (20 %) : photo où la feuille ne remplit pas tout le cadre
+  return tryCorners(gray, w, h, 0.10) ?? tryCorners(gray, w, h, 0.20);
+}
+
+function tryCorners(gray: Uint8ClampedArray, w: number, h: number, REGION: number): Corners | null {
+  const DARK   = 80;
+  const MIN_PX = 25;
 
   function centroid(x0: number, y0: number, x1: number, y1: number): Point | null {
     let sx = 0, sy = 0, n = 0;
@@ -103,14 +108,13 @@ function detectCorners(gray: Uint8ClampedArray, w: number, h: number): Corners |
   const rx = Math.floor(w * REGION);
   const ry = Math.floor(h * REGION);
 
-  const TL = centroid(0,     0,     rx, ry);
-  const TR = centroid(w - rx, 0,    w,  ry);
-  const BL = centroid(0,     h - ry, rx, h);
-  const BR = centroid(w - rx, h - ry, w, h);
+  const TL = centroid(0,      0,      rx, ry);
+  const TR = centroid(w - rx, 0,      w,  ry);
+  const BL = centroid(0,      h - ry, rx, h);
+  const BR = centroid(w - rx, h - ry, w,  h);
 
   if (!TL || !TR || !BL || !BR) return null;
 
-  // Vérification : les 4 coins doivent former un quasi-rectangle
   const wr = (TR.x - TL.x) / (BR.x - BL.x);
   const hr = (BL.y - TL.y) / (BR.y - TR.y);
   if (wr < 0.6 || wr > 1.4 || hr < 0.6 || hr > 1.4) return null;
