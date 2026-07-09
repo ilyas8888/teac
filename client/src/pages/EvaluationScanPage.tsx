@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeft, CheckCircle, ScanLine, Upload, AlertTriangle, RotateCcw } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import type { Evaluation, EvaluationContent, Student } from '../types';
@@ -78,10 +79,7 @@ export default function EvaluationScanPage() {
 
   async function renderPdfToFile(file: File): Promise<File> {
     const pdfjsLib = await import('pdfjs-dist');
-    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-      'pdfjs-dist/build/pdf.worker.min.mjs',
-      import.meta.url,
-    ).href;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
     const data    = await file.arrayBuffer();
     const pdf     = await pdfjsLib.getDocument({ data }).promise;
     // La feuille de réponses est toujours la dernière page (page-break-before: always)

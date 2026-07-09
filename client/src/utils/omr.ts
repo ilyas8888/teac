@@ -88,30 +88,34 @@ function toGray(data: Uint8ClampedArray): Uint8ClampedArray {
 }
 
 function detectCorners(gray: Uint8ClampedArray, w: number, h: number): Corners | null {
-  // Essai en zone étroite (10 %) d'abord : PDF imprimé avec marges → repères à ~9 % des bords
-  // Repli sur zone large (20 %) : photo où la feuille ne remplit pas tout le cadre
-  return tryCorners(gray, w, h, 0.10) ?? tryCorners(gray, w, h, 0.20);
-}
-
-function tryCorners(gray: Uint8ClampedArray, w: number, h: number, REGION: number): Corners | null {
-  const DARK   = 80;
-  const MIN_PX = 25;
-
-  function centroid(x0: number, y0: number, x1: number, y1: number): Point | null {
-    let sx = 0, sy = 0, n = 0;
-    for (let y = y0; y < y1; y++)
-      for (let x = x0; x < x1; x++)
-        if (gray[y * w + x] < DARK) { sx += x; sy += y; n++; }
-    return n >= MIN_PX ? { x: sx / n, y: sy / n } : null;
-  }
+  const DARK      = 80;
+  const REGION    = 0.28;   // chercher dans les 28 % depuis chaque coin (PDF avec marges + photo)
+  // Fenêtre glissante ≈ 1,8 % du petit côté — assez grande pour couvrir le carré imprimé
+  const PATCH     = Math.max(12, Math.round(Math.min(w, h) * 0.018));
+  const MIN_FILL  = Math.floor(PATCH * PATCH * 0.35); // carré plein ≥ 35 % → passe ; ligne 1px → rate
 
   const rx = Math.floor(w * REGION);
   const ry = Math.floor(h * REGION);
 
-  const TL = centroid(0,      0,      rx, ry);
-  const TR = centroid(w - rx, 0,      w,  ry);
-  const BL = centroid(0,      h - ry, rx, h);
-  const BR = centroid(w - rx, h - ry, w,  h);
+  // Retourne le centre du patch le plus dense dans la zone donnée
+  function densestPatch(x0: number, y0: number, x1: number, y1: number): Point | null {
+    let best = 0, bx = -1, by = -1;
+    for (let y = y0; y <= y1 - PATCH; y += 2) {
+      for (let x = x0; x <= x1 - PATCH; x += 2) {
+        let n = 0;
+        for (let dy = 0; dy < PATCH; dy++)
+          for (let dx = 0; dx < PATCH; dx++)
+            if (gray[(y + dy) * w + (x + dx)] < DARK) n++;
+        if (n > best) { best = n; bx = x + PATCH / 2; by = y + PATCH / 2; }
+      }
+    }
+    return best >= MIN_FILL ? { x: bx, y: by } : null;
+  }
+
+  const TL = densestPatch(0,      0,      rx, ry);
+  const TR = densestPatch(w - rx, 0,      w,  ry);
+  const BL = densestPatch(0,      h - ry, rx, h);
+  const BR = densestPatch(w - rx, h - ry, w,  h);
 
   if (!TL || !TR || !BL || !BR) return null;
 
