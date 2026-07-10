@@ -19,6 +19,11 @@ export interface Class {
 }
 
 export interface UserSettings {
+  nom: string;
+  prenom: string;
+  email: string;
+  ecole?: string;
+  matieres: string[];
   niveauxOptions: string[];
   groupesOptions: string[];
   etablissementsOptions: string[];
