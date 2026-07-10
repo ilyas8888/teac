@@ -60,6 +60,19 @@ function createSlideHeading(slideNumber: number): TeacPartialBlock {
   } as TeacPartialBlock;
 }
 
+function createBlockId() {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `block-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function duplicateBlockWithNewIds(block: TeacPartialBlock): TeacPartialBlock {
+  const rawBlock = block as RawBlock;
+  return {
+    ...block,
+    id: createBlockId(),
+    children: rawBlock.children?.map((child) => duplicateBlockWithNewIds(child as TeacPartialBlock)) ?? [],
+  } as TeacPartialBlock;
+}
+
 function getBlockBackground(block: TeacPartialBlock | undefined) {
   const props = (block as RawBlock | undefined)?.props;
   return typeof props?._slideBackground === 'string' ? props._slideBackground : '#ffffff';
@@ -124,6 +137,73 @@ export default function SlideStudioPage() {
       return next;
     });
     setSelectedSlideIndex((index) => index + 1);
+  };
+
+  const handleInsertBefore = (index: number) => {
+    setContent((current) => {
+      const blocks = current ?? [];
+      const starts = getSlideStartIndexes(blocks);
+      const insertIndex = starts[index] ?? blocks.length;
+      const next = [...blocks];
+      next.splice(insertIndex, 0, createSlideHeading(starts.length + 1));
+      return next;
+    });
+    setSelectedSlideIndex(index);
+  };
+
+  const handleDeleteSlide = (index: number) => {
+    setContent((current) => {
+      const blocks = current ?? [];
+      const starts = getSlideStartIndexes(blocks);
+      if (starts.length <= 1) return blocks;
+
+      const start = starts[index] ?? 0;
+      const end = starts[index + 1] ?? blocks.length;
+      return [...blocks.slice(0, start), ...blocks.slice(end)];
+    });
+    setSelectedSlideIndex((prev) => Math.max(0, prev >= index ? prev - 1 : prev));
+  };
+
+  const handleDuplicateSlide = (index: number) => {
+    setContent((current) => {
+      const blocks = current ?? [];
+      const starts = getSlideStartIndexes(blocks);
+      const start = starts[index] ?? 0;
+      const end = starts[index + 1] ?? blocks.length;
+      const duplicatedBlocks = blocks.slice(start, end).map(duplicateBlockWithNewIds);
+      const next = [...blocks];
+      next.splice(end, 0, ...duplicatedBlocks);
+      return next;
+    });
+    setSelectedSlideIndex(index + 1);
+  };
+
+  const handleMoveSlide = (index: number, direction: 'up' | 'down') => {
+    setContent((current) => {
+      const blocks = current ?? [];
+      const starts = getSlideStartIndexes(blocks);
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= starts.length) return blocks;
+
+      const firstIndex = Math.min(index, targetIndex);
+      const secondIndex = Math.max(index, targetIndex);
+      const firstStart = starts[firstIndex] ?? 0;
+      const firstEnd = starts[firstIndex + 1] ?? blocks.length;
+      const secondStart = starts[secondIndex] ?? firstEnd;
+      const secondEnd = starts[secondIndex + 1] ?? blocks.length;
+      const firstSlide = blocks.slice(firstStart, firstEnd);
+      const betweenSlides = blocks.slice(firstEnd, secondStart);
+      const secondSlide = blocks.slice(secondStart, secondEnd);
+
+      return [
+        ...blocks.slice(0, firstStart),
+        ...secondSlide,
+        ...betweenSlides,
+        ...firstSlide,
+        ...blocks.slice(secondEnd),
+      ];
+    });
+    setSelectedSlideIndex(direction === 'up' ? index - 1 : index + 1);
   };
 
   const handleSlideChange = (newBlocks: TeacBlock[]) => {
@@ -225,6 +305,10 @@ export default function SlideStudioPage() {
           selectedIndex={selectedSlideIndex}
           onSelect={setSelectedSlideIndex}
           onAddSlide={handleAddSlide}
+          onInsertBefore={handleInsertBefore}
+          onDeleteSlide={handleDeleteSlide}
+          onDuplicateSlide={handleDuplicateSlide}
+          onMoveSlide={handleMoveSlide}
         />
 
         <main
