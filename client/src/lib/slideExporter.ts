@@ -257,7 +257,7 @@ export function renderEditableBlock(block: EditableBlock, slideBg?: string) {
     return `<a class="link-card" href="${escapeHtml(url)}" target="_blank" rel="noreferrer"${styleAttr}>${image ? `<img src="${escapeHtml(image)}" alt="">` : ''}<span><strong>${escapeHtml(title)}</strong>${description ? `<small>${escapeHtml(description)}</small>` : ''}</span></a>`;
   }
 
-  return `<p${styleAttr}>${text}</p>`;
+  return `<p${styleAttr}>${text || '&nbsp;'}</p>`;
 }
 
 export function renderEditableBlocksToHtml(blocks: EditableBlock[], slideBg?: string) {
@@ -325,7 +325,7 @@ export function exportToRevealHtml(session: Session, slides: EditableSlide[], op
     }
     .reveal section { text-align: left; overflow: hidden; }
     .reveal h1, .reveal h2, .reveal h3 { text-align: inherit; letter-spacing: 0; line-height: 1.1; margin-bottom: 0.4em; }
-    .reveal p, .reveal li { line-height: 1.4; margin-bottom: 0.3em; }
+    .reveal p, .reveal li { line-height: 1.6; margin-bottom: 0.5em; }
     .reveal ul, .reveal ol { margin-top: 0; }
     .reveal img { max-height: 40vh; object-fit: contain; border-radius: 10px; box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14); }
     .reveal figure { margin: 0.4em 0; }
