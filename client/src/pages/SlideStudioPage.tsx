@@ -316,11 +316,15 @@ export default function SlideStudioPage() {
         >
           <div
             id="studio-slide-canvas"
-            className="mx-auto max-w-4xl rounded-lg py-6 shadow-md transition-colors duration-200"
+            className="mx-auto rounded-lg shadow-md transition-colors duration-200"
             style={{
+              aspectRatio: '1100 / 700',
+              width: '100%',
+              maxWidth: '100%',
               backgroundColor: slideBackground,
               color: themeColors.text,
               border: `1px solid ${themeColors.border}`,
+              overflow: 'hidden',
             }}
           >
             <StudioSessionEditor
