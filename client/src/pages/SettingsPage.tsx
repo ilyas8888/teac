@@ -98,8 +98,9 @@ export default function SettingsPage() {
       setPwForm({ current: '', next: '', confirm: '' });
       setPwMsg({ ok: true, text: 'Mot de passe modifie.' });
     },
-    onError: () => {
-      setPwMsg({ ok: false, text: 'Impossible de modifier le mot de passe.' });
+    onError: (err: { response?: { data?: { message?: string } } }) => {
+      const msg = err.response?.data?.message;
+      setPwMsg({ ok: false, text: msg ?? 'Impossible de modifier le mot de passe.' });
     },
   });
 
