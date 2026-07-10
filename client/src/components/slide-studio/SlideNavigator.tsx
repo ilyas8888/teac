@@ -56,7 +56,7 @@ export default function SlideNavigator({
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-visible">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
         {slides.map((slide, index) => {
           const backgroundColor = slide.slideStyle.backgroundColor || '#ffffff';
           const color = getAutoContrastColor(backgroundColor);
@@ -106,8 +106,8 @@ export default function SlideNavigator({
                   setOpenMenuIndex(isMenuOpen ? null : index);
                 }}
                 title="Actions"
-                className={`absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-gray-500 shadow-sm transition hover:text-gray-900 ${
-                  isMenuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                className={`absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-white shadow-sm transition hover:bg-purple-50 hover:text-purple-700 ${
+                  isMenuOpen ? 'text-purple-700' : 'text-gray-400'
                 }`}
               >
                 <MoreVertical size={14} />
@@ -116,7 +116,7 @@ export default function SlideNavigator({
               {isMenuOpen && (
                 <div
                   ref={menuRef}
-                  className="absolute left-full top-0 z-20 ml-2 w-44 rounded-lg border border-gray-200 bg-white py-1 text-sm shadow-lg"
+                  className="absolute left-0 top-full z-50 mt-1 w-44 rounded-lg border border-gray-200 bg-white py-1 text-sm shadow-xl"
                   onClick={(event) => event.stopPropagation()}
                 >
                   <button
