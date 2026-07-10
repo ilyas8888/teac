@@ -112,6 +112,7 @@ export function renderInlineContent(content: unknown): string {
       if (!isRecord(item)) return '';
 
       if (item.type === 'text') return renderStyledText(asString(item.text), item.styles);
+      if (item.type === 'hardBreak') return '<br>';
 
       if (item.type === 'link') {
         const href = asString(item.href) || asString(item.url);
