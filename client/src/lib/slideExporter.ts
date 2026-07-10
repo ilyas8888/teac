@@ -30,6 +30,13 @@ export function escapeHtml(value: unknown) {
     .replace(/'/g, '&#39;');
 }
 
+function renderText(raw: unknown) {
+  return escapeHtml(raw)
+    .replace(/\n/g, '<br>')
+    .replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;')
+    .replace(/ {2,}/g, (m) => '&nbsp;'.repeat(m.length));
+}
+
 function isRecord(value: unknown): value is AnyRecord {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
@@ -81,7 +88,7 @@ export function blockStyleToInlineStyle(style: BlockStyle = {}, slideBg?: string
 function renderStyledText(text: string, styles: unknown) {
   const styleMap = isRecord(styles) ? styles : {};
   const inlineStyles: string[] = [];
-  let html = escapeHtml(text).replace(/\n/g, '<br>');
+  let html = renderText(text);
 
   if (typeof styleMap.textColor === 'string' && styleMap.textColor !== 'default') inlineStyles.push(`color:${styleMap.textColor}`);
   if (typeof styleMap.backgroundColor === 'string' && styleMap.backgroundColor !== 'default') inlineStyles.push(`background-color:${styleMap.backgroundColor}`);
@@ -96,12 +103,12 @@ function renderStyledText(text: string, styles: unknown) {
 }
 
 export function renderInlineContent(content: unknown): string {
-  if (typeof content === 'string') return escapeHtml(content).replace(/\n/g, '<br>');
+  if (typeof content === 'string') return renderText(content);
   if (!Array.isArray(content)) return '';
 
   return content
     .map((item) => {
-      if (typeof item === 'string') return escapeHtml(item).replace(/\n/g, '<br>');
+      if (typeof item === 'string') return renderText(item);
       if (!isRecord(item)) return '';
 
       if (item.type === 'text') return renderStyledText(asString(item.text), item.styles);
