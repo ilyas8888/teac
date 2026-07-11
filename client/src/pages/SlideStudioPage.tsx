@@ -320,11 +320,13 @@ export default function SlideStudioPage() {
             style={{
               aspectRatio: '1100 / 700',
               width: '100%',
-              maxWidth: '100%',
+              maxWidth: '1100px',
               backgroundColor: slideBackground,
               color: themeColors.text,
               border: `1px solid ${themeColors.border}`,
-              overflow: 'hidden',
+              // Keep the slide at its true 1100x700 size (WYSIWYG) and scroll to edit
+              // overflowing content; the export auto-fits it to the slide.
+              overflow: 'auto',
             }}
           >
             <StudioSessionEditor

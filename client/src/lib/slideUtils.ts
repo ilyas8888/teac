@@ -14,7 +14,7 @@ export interface BlockStyle {
   fontSize?: 'sm' | 'base' | 'lg' | 'xl' | '2xl';
   fontWeight?: 'normal' | 'bold';
   fontStyle?: 'normal' | 'italic';
-  textAlign?: 'left' | 'center' | 'right';
+  textAlign?: 'left' | 'center' | 'right' | 'justify';
 }
 
 export interface EditableBlock {
@@ -78,8 +78,10 @@ function extractStyle(props: AnyRecord): BlockStyle {
   }
   if (rawStyle.fontWeight === 'normal' || rawStyle.fontWeight === 'bold') style.fontWeight = rawStyle.fontWeight;
   if (rawStyle.fontStyle === 'normal' || rawStyle.fontStyle === 'italic') style.fontStyle = rawStyle.fontStyle;
-  if (rawStyle.textAlign === 'left' || rawStyle.textAlign === 'center' || rawStyle.textAlign === 'right') {
-    style.textAlign = rawStyle.textAlign;
+  // BlockNote stores alignment as `textAlignment`; our persisted style uses `textAlign`.
+  const align = rawStyle.textAlign ?? rawStyle.textAlignment;
+  if (align === 'left' || align === 'center' || align === 'right' || align === 'justify') {
+    style.textAlign = align;
   }
 
   return style;

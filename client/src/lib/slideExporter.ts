@@ -198,7 +198,12 @@ function renderToggle(block: EditableBlock, slideBg?: string) {
 }
 
 export function renderEditableBlock(block: EditableBlock, slideBg?: string) {
-  const inlineStyle = blockStyleToInlineStyle(block.style, slideBg);
+  let inlineStyle = blockStyleToInlineStyle(block.style, slideBg);
+  // BlockNote keeps alignment on props.textAlignment; use it when the style has none.
+  const propAlign = asString(getProp(block.props, 'textAlignment'));
+  if (!/text-align:/.test(inlineStyle) && ['left', 'center', 'right', 'justify'].includes(propAlign)) {
+    inlineStyle = [inlineStyle, `text-align:${propAlign}`].filter(Boolean).join(';');
+  }
   const styleAttr = inlineStyle ? ` style="${escapeHtml(inlineStyle)}"` : '';
   const text = renderBlockText(block);
 
@@ -297,7 +302,7 @@ export function exportToRevealHtml(session: Session, slides: EditableSlide[], op
     .map((slide) => {
       const bg = slide.slideStyle.backgroundColor;
       const bgAttr = bg ? ` data-background-color="${escapeHtml(bg)}"` : '';
-      return `<section${bgAttr}>${renderEditableBlocksToHtml(slide.blocks, bg)}</section>`;
+      return `<section${bgAttr}><div class="fit">${renderEditableBlocksToHtml(slide.blocks, bg)}</div></section>`;
     })
     .join('\n');
 
@@ -318,16 +323,20 @@ export function exportToRevealHtml(session: Session, slides: EditableSlide[], op
       --r-main-font: Inter, system-ui, sans-serif;
       --r-heading-font: Inter, system-ui, sans-serif;
       --r-code-font: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-      --r-main-font-size: 28px;
-      --r-heading1-size: 1.9em;
-      --r-heading2-size: 1.4em;
-      --r-heading3-size: 1.1em;
+      --r-main-font-size: 18px;
+      --r-heading1-size: 2.1em;
+      --r-heading2-size: 1.55em;
+      --r-heading3-size: 1.25em;
     }
     .reveal section { text-align: left; overflow: hidden; }
+    /* Auto-fit wrapper: content is scaled down (never up) to fit the 700px slide. */
+    .reveal .fit { transform-origin: top center; }
     .reveal h1, .reveal h2, .reveal h3 { text-align: inherit; letter-spacing: 0; line-height: 1.1; margin-bottom: 0.4em; }
     .reveal p, .reveal li { line-height: 1.6; margin-bottom: 0.5em; }
     .reveal ul, .reveal ol { margin-top: 0; }
-    .reveal img { max-height: 40vh; object-fit: contain; border-radius: 10px; box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14); }
+    /* Slide-relative sizing (px = 1100x700 coordinate space, scales with Reveal). */
+    .reveal img { max-width: 100%; max-height: 420px; object-fit: contain; border-radius: 10px; box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14); }
+    .reveal figure img { display: inline-block; }
     .reveal figure { margin: 0.4em 0; }
     .reveal figcaption { margin-top: 0.4rem; font-size: 0.5em; color: #64748b; }
     .reveal pre { width: 100%; border-radius: 12px; padding: 0.75rem 1rem; margin: 0.4em 0; background: #0f172a; color: #e2e8f0; box-shadow: 0 12px 32px rgba(15, 23, 42, 0.2); }
@@ -375,6 +384,20 @@ export function exportToRevealHtml(session: Session, slides: EditableSlide[], op
     mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });
   </script>
   <script>
+    var SLIDE_HEIGHT = 700;
+    function fitSlide(section) {
+      var fit = section.querySelector('.fit');
+      if (!fit) return;
+      fit.style.transform = '';
+      var available = SLIDE_HEIGHT - 2 * (SLIDE_HEIGHT * 0.06);
+      var contentHeight = fit.scrollHeight;
+      if (contentHeight > available) {
+        fit.style.transform = 'scale(' + (available / contentHeight) + ')';
+      }
+    }
+    function fitAll() {
+      document.querySelectorAll('.reveal .slides section').forEach(fitSlide);
+    }
     Reveal.initialize({
       hash: false,
       center: false,
@@ -389,6 +412,14 @@ export function exportToRevealHtml(session: Session, slides: EditableSlide[], op
       transition: ${JSON.stringify(opts.transition)}
     }).then(function () {
       if (window.hljs) window.hljs.highlightAll();
+      fitAll();
+    });
+    Reveal.on('ready', fitAll);
+    Reveal.on('slidechanged', fitAll);
+    window.addEventListener('resize', fitAll);
+    // Images load asynchronously — re-fit once each finishes.
+    document.querySelectorAll('.reveal img').forEach(function (img) {
+      if (!img.complete) img.addEventListener('load', fitAll);
     });
   </script>
 </body>
