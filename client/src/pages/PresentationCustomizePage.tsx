@@ -90,6 +90,14 @@ export default function PresentationCustomizePage() {
     staleTime: 30_000,
   });
 
+  // Short-lived, session-scoped token so the (public-navigation) presentation stays private.
+  const { data: presentToken } = useQuery<string>({
+    queryKey: ['present-token', sessionId],
+    queryFn: () => api.get(`/present/${sessionId}/token`).then((r) => r.data.token),
+    enabled: !!sessionId,
+    staleTime: 60 * 60 * 1000,
+  });
+
   const buildUrl = useMemo(() => (overrides: Partial<CustomizeOpts> = {}, download = false) => {
     const values = { ...opts, ...overrides };
     const params = new URLSearchParams();
@@ -106,11 +114,12 @@ export default function PresentationCustomizePage() {
     if (values.showProgress !== DEFAULT_OPTS.showProgress) params.set('progress', values.showProgress ? '1' : '0');
     if (values.showMeta !== DEFAULT_OPTS.showMeta) params.set('meta', values.showMeta ? '1' : '0');
     if (download) params.set('download', '1');
+    if (presentToken) params.set('token', presentToken);
 
     const query = params.toString();
     const baseUrl = `${apiBase}/present/${sessionId}`;
     return query ? `${baseUrl}?${query}` : baseUrl;
-  }, [apiBase, opts, sessionId]);
+  }, [apiBase, opts, sessionId, presentToken]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setPreviewUrl(buildUrl()), 800);

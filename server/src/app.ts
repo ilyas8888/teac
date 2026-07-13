@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import classRoutes from './routes/class.routes';
@@ -24,13 +26,33 @@ import { errorHandler } from './middleware/error.middleware';
 
 dotenv.config();
 
+// Fail fast if the JWT secret is missing or too weak — auth silently breaks otherwise.
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET manquant : définissez-le dans les variables d\'environnement.');
+}
+if (process.env.JWT_SECRET.length < 32) {
+  console.warn('[security] JWT_SECRET fait moins de 32 caractères — utilisez un secret plus long en production.');
+}
+
 const app = express();
 
+// Security headers. CSP is disabled globally because /api/present serves standalone
+// HTML that loads Reveal.js from a CDN with inline scripts; that route sets its own CSP.
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true }));
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 app.use('/uploads', express.static('uploads'));
 
-app.use('/api/auth', authRoutes);
+// Throttle auth endpoints to slow down brute-force / credential-stuffing.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Trop de tentatives, réessayez plus tard.' },
+});
+
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/courses', courseRoutes);

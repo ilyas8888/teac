@@ -1,5 +1,66 @@
 import { Request, Response } from 'express';
+import { randomBytes } from 'crypto';
+import jwt from 'jsonwebtoken';
 import prisma from '../services/prisma.service';
+import { AuthRequest } from '../middleware/auth.middleware';
+
+interface PresentTokenPayload {
+  sid: string;
+  purpose: 'present';
+}
+
+/**
+ * Authenticated route: verify the teacher owns the session, then issue a
+ * short-lived token scoped to that single session so it can be presented via a
+ * plain browser navigation (which cannot send the Authorization header).
+ */
+export const getPresentToken = async (req: AuthRequest, res: Response): Promise<void> => {
+  const sessionId = String(req.params.id);
+  const owned = await prisma.session.findFirst({
+    where: { id: sessionId, course: { teacherId: req.userId } },
+    select: { id: true },
+  });
+  if (!owned) {
+    res.status(404).json({ message: 'Seance non trouvee' });
+    return;
+  }
+  const token = jwt.sign(
+    { sid: sessionId, purpose: 'present' } satisfies PresentTokenPayload,
+    process.env.JWT_SECRET!,
+    { expiresIn: '2h' },
+  );
+  res.json({ token });
+};
+
+function verifyPresentToken(rawToken: unknown, sessionId: string): boolean {
+  if (typeof rawToken !== 'string' || !rawToken) return false;
+  try {
+    const payload = jwt.verify(rawToken, process.env.JWT_SECRET!) as Partial<PresentTokenPayload>;
+    return payload.purpose === 'present' && payload.sid === sessionId;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Reject unsafe URL schemes (javascript:, data:, vbscript:, …) to prevent
+ * stored XSS from block content. Allows http(s), mailto, protocol-relative,
+ * absolute paths and fragments; everything else becomes empty.
+ */
+function safeUrl(raw: string): string {
+  const value = raw.trim();
+  if (!value) return '';
+  if (value.startsWith('/') || value.startsWith('#')) return value;
+  try {
+    const parsed = new URL(value, 'https://placeholder.invalid');
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:' || parsed.protocol === 'mailto:') {
+      return value;
+    }
+    return '';
+  } catch {
+    return '';
+  }
+}
 
 const ALLOWED_THEMES = ['white', 'black', 'moon', 'sky', 'league', 'beige'] as const;
 const ALLOWED_TRANSITIONS = ['slide', 'fade', 'zoom', 'none'] as const;
@@ -48,8 +109,16 @@ interface PresentSession {
 }
 
 export const presentSession = async (req: Request, res: Response): Promise<void> => {
+  const sessionId = String(req.params.id);
+
+  // Private: only holders of a valid, session-scoped token (minted for the owner) may view.
+  if (!verifyPresentToken(req.query.token, sessionId)) {
+    res.status(401).type('html').send('<!doctype html><meta charset="utf-8"><title>Acces refuse</title><body style="font-family:sans-serif;padding:2rem">Lien de presentation invalide ou expire.</body>');
+    return;
+  }
+
   const session = await prisma.session.findFirst({
-    where: { id: String(req.params.id) },
+    where: { id: sessionId },
     include: { course: true, class: true },
   }) as PresentSession | null;
 
@@ -96,7 +165,25 @@ export const presentSession = async (req: Request, res: Response): Promise<void>
     ...slides.map((slide) => `<section>${renderBlocksToHtml(slide)}</section>`),
   ].join('\n');
 
-  const html = renderPresentationHtml(session.titre, slideSections, options);
+  const nonce = randomBytes(16).toString('base64');
+  const html = renderPresentationHtml(session.titre, slideSections, options, nonce);
+
+  // Tight CSP for the standalone presentation: inline scripts run only via nonce,
+  // external code is limited to the Reveal.js CDN and Google Fonts.
+  res.setHeader(
+    'Content-Security-Policy',
+    [
+      "default-src 'self'",
+      `script-src 'nonce-${nonce}' https://cdn.jsdelivr.net`,
+      "style-src 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com",
+      'font-src https://fonts.gstatic.com data:',
+      'img-src https: data:',
+      'media-src https:',
+      'frame-src https:',
+      "connect-src 'self' https:",
+      "base-uri 'none'",
+    ].join('; '),
+  );
 
   if (req.query.download === '1') {
     res.setHeader('Content-Disposition', `attachment; filename="${toFilename(session.titre)}.html"`);
@@ -213,7 +300,7 @@ function renderCodeBlock(block: Block): string {
 }
 
 function renderImage(block: Block): string {
-  const url = toString(block.props?.url);
+  const url = safeUrl(toString(block.props?.url));
   if (!url) return '';
 
   const caption = toString(block.props?.caption);
@@ -222,7 +309,7 @@ function renderImage(block: Block): string {
 }
 
 function renderVideo(block: Block): string {
-  const url = toString(block.props?.url);
+  const url = safeUrl(toString(block.props?.url));
   if (!url) return '';
 
   const caption = toString(block.props?.caption);
@@ -230,7 +317,7 @@ function renderVideo(block: Block): string {
 }
 
 function renderFile(block: Block): string {
-  const url = toString(block.props?.url);
+  const url = safeUrl(toString(block.props?.url));
   const name = toString(block.props?.name) || toString(block.props?.title) || url;
   if (!url) return `<p>📎 ${escapeHtml(name)}</p>`;
 
@@ -256,10 +343,13 @@ function renderLinkCard(block: Block): string {
   const mode = toString(props.mode) || 'auto';
   const embed = detectEmbedUrl(url);
   if (mode === 'embed' || (mode !== 'card' && mode !== 'compact' && embed)) {
-    return `<div class="iframe-wrap"><iframe src="${escapeHtml(embed?.embedUrl || url)}" title="${escapeHtml(toString(props.title) || embed?.provider || url)}" allow="fullscreen; picture-in-picture; clipboard-write" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`;
+    const frameSrc = safeUrl(embed?.embedUrl || url);
+    if (!frameSrc) return '';
+    return `<div class="iframe-wrap"><iframe src="${escapeHtml(frameSrc)}" title="${escapeHtml(toString(props.title) || embed?.provider || url)}" allow="fullscreen; picture-in-picture; clipboard-write" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`;
   }
 
-  const image = toString(props.image);
+  const image = safeUrl(toString(props.image));
+  const safeHref = safeUrl(url);
   const title = toString(props.title) || url;
   const description = toString(props.description);
   const siteName = toString(props.siteName);
@@ -267,7 +357,7 @@ function renderLinkCard(block: Block): string {
   return `<div class="link-card">
     ${image ? `<img class="link-card-img" src="${escapeHtml(image)}" alt="" />` : ''}
     <div class="link-card-body">
-      <a href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${escapeHtml(title)}</a>
+      <a href="${escapeHtml(safeHref)}" target="_blank" rel="noreferrer">${escapeHtml(title)}</a>
       ${description ? `<p>${escapeHtml(description)}</p>` : ''}
       ${siteName ? `<small>${escapeHtml(siteName)}</small>` : ''}
     </div>
@@ -288,7 +378,7 @@ function renderInline(content: unknown): string {
 
     const inline = item as AnyRecord;
     if (inline.type === 'link') {
-      const href = toString(inline.href);
+      const href = safeUrl(toString(inline.href));
       const nested = renderInline(inline.content);
       return href ? `<a href="${escapeHtml(href)}" target="_blank" rel="noreferrer">${nested}</a>` : nested;
     }
@@ -401,7 +491,7 @@ function parseUrl(rawUrl: string): URL | null {
   }
 }
 
-function renderPresentationHtml(title: string, slideSections: string, options: PresentOptions): string {
+function renderPresentationHtml(title: string, slideSections: string, options: PresentOptions, nonce: string): string {
   const googleFontHref = getGoogleFontHref(options.font);
   const fontFamily = getFontFamily(options.font);
   const revealWidth = options.ratio === '43' ? 960 : 1280;
@@ -457,7 +547,7 @@ function renderPresentationHtml(title: string, slideSections: string, options: P
   <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/highlight.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
-  <script>
+  <script nonce="${nonce}">
     Reveal.initialize({
       hash: true,
       transition: '${options.transition}',

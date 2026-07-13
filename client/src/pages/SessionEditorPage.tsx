@@ -24,6 +24,14 @@ export default function SessionEditorPage() {
     staleTime: Infinity, // don't refetch & remount the editor while editing
   });
 
+  // Short-lived, session-scoped token so the (public-navigation) presentation stays private.
+  const { data: presentToken } = useQuery<string>({
+    queryKey: ['present-token', sessionId],
+    queryFn: () => api.get(`/present/${sessionId}/token`).then((r) => r.data.token),
+    enabled: !!sessionId,
+    staleTime: 60 * 60 * 1000,
+  });
+
   const save = useMutation({
     mutationFn: (content: TeacBlock[]) => api.put(`/sessions/${sessionId}`, { content }),
     onMutate: () => setSaveState('saving'),
@@ -66,8 +74,8 @@ export default function SessionEditorPage() {
             <SaveIndicator state={saveState} />
             <div className="flex items-center gap-2">
               <a
-                className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700"
-                href={`${apiBase}/present/${sessionId}`}
+                className={`inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 ${presentToken ? '' : 'pointer-events-none opacity-60'}`}
+                href={presentToken ? `${apiBase}/present/${sessionId}?token=${presentToken}` : undefined}
                 target="_blank"
                 rel="noreferrer"
               >
