@@ -5,6 +5,8 @@ export interface User {
   email: string;
   ecole?: string;
   matieres: string[];
+  emailVerified?: boolean;
+  twoFactorEnabled?: boolean;
 }
 
 export interface Class {

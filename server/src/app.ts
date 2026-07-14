@@ -52,6 +52,21 @@ const authLimiter = rateLimit({
   message: { message: 'Trop de tentatives, réessayez plus tard.' },
 });
 
+// Tighter cap on the credential / code-guessing endpoints specifically.
+const sensitiveAuthLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Trop de tentatives, réessayez dans quelques minutes.' },
+});
+
+app.use([
+  '/api/auth/login',
+  '/api/auth/login/2fa',
+  '/api/auth/password/forgot',
+  '/api/auth/password/reset',
+], sensitiveAuthLimiter);
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/students', studentRoutes);

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import type { UserSettings } from '../types';
+import TwoFactorSettings from '../components/settings/TwoFactorSettings';
 
 type Section = 'profile' | 'personalization' | 'security' | 'account';
 type OptionKey = 'niveauxOptions' | 'groupesOptions' | 'etablissementsOptions';
@@ -427,6 +428,8 @@ export default function SettingsPage() {
               >
                 Enregistrer
               </button>
+
+              <TwoFactorSettings />
             </div>
           )}
 

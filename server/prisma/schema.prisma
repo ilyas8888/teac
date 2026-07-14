@@ -20,6 +20,10 @@ model User {
   niveauxOptions      String[]
   groupesOptions      String[]
   etablissementsOptions String[]
+  emailVerified     Boolean  @default(false)
+  twoFactorEnabled  Boolean  @default(false)
+  twoFactorSecret   String?
+  twoFactorRecovery String[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -30,6 +34,40 @@ model User {
   messagesReceived Message[] @relation("ReceivedMessages")
   events       Event[]
   evaluations  Evaluation[]
+  refreshTokens      RefreshToken[]
+  verificationTokens VerificationToken[]
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid())
+  tokenHash  String    @unique
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  replacedBy String?
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  id         String           @id @default(uuid())
+  tokenHash  String           @unique
+  type       VerificationType
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime         @default(now())
+
+  @@index([userId])
+}
+
+enum VerificationType {
+  EMAIL_VERIFY
+  PASSWORD_RESET
 }
 
 model Class {

@@ -12,7 +12,12 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
     return;
   }
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId?: string; type?: string };
+    // Only full access tokens pass here — not 2FA-pending or present tokens.
+    if (decoded.type !== 'access' || !decoded.userId) {
+      res.status(401).json({ message: 'Token invalide' });
+      return;
+    }
     req.userId = decoded.userId;
     next();
   } catch {
