@@ -36,6 +36,12 @@ if (process.env.JWT_SECRET.length < 32) {
 
 const app = express();
 
+// Running behind a reverse proxy (HuggingFace Spaces) that sets X-Forwarded-For.
+// Trust the first hop so express-rate-limit reads the real client IP instead of
+// throwing ERR_ERL_UNEXPECTED_X_FORWARDED_FOR. Keep it to a fixed count (not `true`)
+// so the header can't be spoofed to bypass the auth rate limits.
+app.set('trust proxy', 1);
+
 // Security headers. CSP is disabled globally because /api/present serves standalone
 // HTML that loads Reveal.js from a CDN with inline scripts; that route sets its own CSP.
 app.use(helmet({ contentSecurityPolicy: false }));
