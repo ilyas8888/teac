@@ -13,7 +13,11 @@ const transporter = configured
   : null;
 
 const FROM = process.env.SMTP_FROM || `Teac <${SMTP_USER || 'no-reply@teac.app'}>`;
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+// Base URL used to build user-facing links (email verification, password reset).
+// This must be the full frontend app URL *including any sub-path* — on GitHub Pages
+// the app is served under /teac, whereas CLIENT_URL is the bare origin used for the
+// CORS allow-list (a path in CORS would break it). Falls back to CLIENT_URL for local dev.
+const APP_URL = (process.env.APP_URL || process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/+$/, '');
 
 async function sendMail(to: string, subject: string, html: string): Promise<void> {
   if (!transporter) {
@@ -39,7 +43,7 @@ function layout(title: string, body: string, cta?: { label: string; url: string 
 }
 
 export async function sendVerificationEmail(to: string, prenom: string, rawToken: string): Promise<void> {
-  const url = `${CLIENT_URL}/verify-email?token=${encodeURIComponent(rawToken)}`;
+  const url = `${APP_URL}/verify-email?token=${encodeURIComponent(rawToken)}`;
   await sendMail(
     to,
     'Vérifiez votre adresse email',
@@ -52,7 +56,7 @@ export async function sendVerificationEmail(to: string, prenom: string, rawToken
 }
 
 export async function sendPasswordResetEmail(to: string, prenom: string, rawToken: string): Promise<void> {
-  const url = `${CLIENT_URL}/reset-password?token=${encodeURIComponent(rawToken)}`;
+  const url = `${APP_URL}/reset-password?token=${encodeURIComponent(rawToken)}`;
   await sendMail(
     to,
     'Réinitialisation de votre mot de passe',
